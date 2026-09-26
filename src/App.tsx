@@ -6,12 +6,13 @@ import { AddRecipe } from './components/AddRecipe';
 import { SendRequest } from './components/SendRequest';
 import { SwipeSelector } from './components/SwipeSelector';
 import { Notifications } from './components/Notifications';
-import { UserSwitcher } from './components/UserSwitcher';
 import { SelectedResults } from './components/SelectedResults';
 import { PendingNotificationModal } from './components/PendingNotificationModal';
-import { ChefHat, Bell, Send, UtensilsCrossed, Plus } from 'lucide-react';
+import { AuthScreen } from './components/AuthScreen';
+import { ProfileScreen } from './components/ProfileScreen';
+import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results';
+type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'profile';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('recipes');
@@ -20,6 +21,12 @@ function App() {
   const { notifications, currentUserId, pendingNotification, setPendingNotification, users } = useStore();
 
   const unreadCount = notifications.filter((n) => !n.read && n.type === 'swipe_request').length;
+  const currentUser = users.find(u => u.id === currentUserId);
+
+  // Если не авторизован - показываем экран авторизации
+  if (!currentUserId || !currentUser) {
+    return <AuthScreen onAuth={() => setScreen('recipes')} />;
+  }
 
   const handleOpenSwipe = (requestId: string) => {
     setActiveRequestId(requestId);
@@ -29,6 +36,10 @@ function App() {
   const handleViewResults = (requestId: string) => {
     setActiveRequestId(requestId);
     setScreen('results');
+  };
+
+  const handleLogout = () => {
+    setScreen('recipes');
   };
 
   return (
@@ -54,7 +65,13 @@ function App() {
                 </span>
               )}
             </button>
-            <UserSwitcher />
+            <button
+              onClick={() => setScreen('profile')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100 transition-colors"
+            >
+              <span className="text-lg">{currentUser.avatar}</span>
+              <span className="text-sm font-medium text-gray-700 hidden sm:inline">{currentUser.name}</span>
+            </button>
           </div>
         </div>
       </header>
@@ -101,6 +118,12 @@ function App() {
             onBack={() => setScreen('notifications')}
           />
         )}
+        {screen === 'profile' && (
+          <ProfileScreen
+            onBack={() => setScreen('recipes')}
+            onLogout={handleLogout}
+          />
+        )}
       </main>
 
       {/* Bottom Navigation */}
@@ -130,6 +153,12 @@ function App() {
             icon={<Bell className="w-5 h-5" />}
             label="Запросы"
             badge={unreadCount}
+          />
+          <NavButton
+            active={screen === 'profile'}
+            onClick={() => setScreen('profile')}
+            icon={<User className="w-5 h-5" />}
+            label="Профиль"
           />
         </div>
       </nav>
@@ -170,14 +199,14 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-0.5 p-2 rounded-xl transition-all min-w-[60px] relative ${
+      className={`flex flex-col items-center justify-center gap-0.5 p-2 rounded-xl transition-all min-w-[50px] relative ${
         active ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-gray-600'
       }`}
     >
       <div className="h-5 w-5 flex items-center justify-center">{icon}</div>
-      <span className="text-[11px] font-medium leading-tight">{label}</span>
+      <span className="text-[10px] font-medium leading-tight">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-0.5 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+        <span className="absolute -top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
           {badge}
         </span>
       )}

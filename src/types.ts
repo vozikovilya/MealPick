@@ -43,9 +43,26 @@ export interface DeliveryOption {
 
 export interface User {
   id: string;
+  email: string;
+  username: string;
+  password: string;
   name: string;
   avatar: string;
+  description?: string;
   recipes: Recipe[];
+  familyId?: string;
+  isFamilyOwner?: boolean;
+}
+
+export interface FamilyProfile {
+  id: string;
+  name: string;
+  avatar: string;
+  description?: string;
+  ownerId: string;
+  memberIds: string[];
+  inviteLink: string;
+  createdAt: number;
 }
 
 export interface SwipeRequest {

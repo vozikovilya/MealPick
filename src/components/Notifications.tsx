@@ -10,6 +10,7 @@ interface Props {
 
 export function Notifications({ onOpenSwipe, onViewResults }: Props) {
   const { notifications, users, swipeRequests, markNotificationRead, markAllNotificationsRead, currentUserId } = useStore();
+  if (!currentUserId) return null;
   const [viewingRequestId, setViewingRequestId] = useState<string | null>(null);
 
   const sortedNotifications = [...notifications].sort((a, b) => b.createdAt - a.createdAt);

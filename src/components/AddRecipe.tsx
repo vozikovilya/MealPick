@@ -14,7 +14,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
   const { addRecipe, updateRecipe, users, currentUserId } = useStore();
   const allMealTypes = useAllMealTypes();
   const collectionMealTypes = useCollectionMealTypes();
-  const currentUser = users.find((u) => u.id === currentUserId);
+  const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : null;
   
   // Form state
   const [name, setName] = useState('');

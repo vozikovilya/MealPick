@@ -15,7 +15,7 @@ interface Props {
 export function RecipeList({ onEditRecipe }: Props) {
   const { users, currentUserId, deleteRecipe } = useStore();
   const allMealTypes = useAllMealTypes();
-  const currentUser = users.find((u) => u.id === currentUserId);
+  const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : null;
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);

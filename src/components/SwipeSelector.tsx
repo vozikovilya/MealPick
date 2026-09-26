@@ -11,10 +11,10 @@ interface Props {
 }
 
 export function SwipeSelector({ requestId, onDone }: Props) {
-  const { swipeRequests, users, respondToSwipeRequest } = useStore();
+  const { swipeRequests, users, respondToSwipeRequest, currentUserId } = useStore();
   const request = swipeRequests.find((r) => r.id === requestId);
 
-  if (!request) return null;
+  if (!request || !currentUserId) return null;
 
   const fromUser = users.find((u) => u.id === request.fromUserId);
   const recipes: Recipe[] = request.recipeIds

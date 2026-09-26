@@ -13,6 +13,7 @@ export function SelectedResults({ requestId, onBack }: Props) {
   const request = swipeRequests.find((r) => r.id === requestId);
 
   if (!request) return null;
+  const currentUserId = users[0]?.id; // Fallback
 
   const toUser = users.find((u) => u.id === request.toUserId);
   const fromUser = users.find((u) => u.id === request.fromUserId);

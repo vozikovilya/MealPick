@@ -22,7 +22,7 @@ const cuteMessages = [
 ];
 
 export function SendRequest({ onDone }: Props) {
-  const { users, currentUserId, sendSwipeRequest, deliveryOptions } = useStore();
+  const { users, currentUserId, sendSwipeRequest, deliveryOptions, familyProfile } = useStore();
   const mainMealTypes = useMainMealTypes();
   const allMealTypes = useAllMealTypes();
   
@@ -34,7 +34,11 @@ export function SendRequest({ onDone }: Props) {
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
 
-  const partner = users.find((u) => u.id !== currentUserId);
+  // Находим партнёров - других членов семьи
+  const familyMembers = familyProfile
+    ? users.filter(u => familyProfile.memberIds.includes(u.id) && u.id !== currentUserId)
+    : [];
+  const partner = familyMembers[0] || null;
   const currentUser = users.find((u) => u.id === currentUserId);
 
   const toggleRecipe = (recipeId: string) => {
@@ -124,7 +128,7 @@ export function SendRequest({ onDone }: Props) {
       </div>
 
       {/* Partner */}
-      {partner && (
+      {partner ? (
         <div
           onClick={() => setSelectedPartner(partner.id)}
           className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${
@@ -142,9 +146,14 @@ export function SendRequest({ onDone }: Props) {
             {selectedPartner && <Check className="w-5 h-5 text-orange-500" />}
           </div>
         </div>
+      ) : (
+        <div className="p-4 rounded-2xl border-2 border-dashed border-gray-200 text-center">
+          <p className="text-sm text-gray-500 mb-2">Нет участников семьи</p>
+          <p className="text-xs text-gray-400">Создайте профиль семьи и пригласите участников в разделе "Профиль"</p>
+        </div>
       )}
 
-      {selectedPartner && (
+      {selectedPartner && partner && (
         <>
           {/* Mode Selection */}
           <div className="space-y-2">
