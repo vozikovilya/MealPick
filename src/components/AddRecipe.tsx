@@ -1,16 +1,19 @@
 import { useState, useRef } from 'react';
-import { useStore, useAllMealTypes } from '../store';
-import { Ingredient, CookingStep } from '../types';
-import { ArrowLeft, Plus, X, Image as ImageIcon, Upload, Trash2, ChevronDown } from 'lucide-react';
+import { useStore, useAllMealTypes, useCollectionMealTypes } from '../store';
+import { Ingredient, CookingStep, Recipe } from '../types';
+import { ArrowLeft, Plus, X, Image as ImageIcon, Upload, Trash2, Link2, ChefHat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getRecipeImage } from '../utils';
 
 interface Props {
   onDone: () => void;
 }
 
 export function AddRecipe({ onDone }: Props) {
-  const { addRecipe, addCustomMealType } = useStore();
+  const { addRecipe, addCustomMealType, users, currentUserId } = useStore();
   const allMealTypes = useAllMealTypes();
+  const collectionMealTypes = useCollectionMealTypes();
+  const currentUser = users.find((u) => u.id === currentUserId);
   
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -19,9 +22,11 @@ export function AddRecipe({ onDone }: Props) {
   const [mealType, setMealType] = useState(allMealTypes[0]?.id || 'breakfast');
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [cookingSteps, setCookingSteps] = useState<CookingStep[]>([]);
+  const [pairedRecipeIds, setPairedRecipeIds] = useState<string[]>([]);
   const [showMealTypeInput, setShowMealTypeInput] = useState(false);
   const [newMealTypeName, setNewMealTypeName] = useState('');
   const [newMealTypeEmoji, setNewMealTypeEmoji] = useState('🍽️');
+  const [newMealTypeCollection, setNewMealTypeCollection] = useState(false);
 
   // Ingredient form
   const [ingName, setIngName] = useState('');
@@ -29,6 +34,7 @@ export function AddRecipe({ onDone }: Props) {
   const [ingUnit, setIngUnit] = useState('');
 
   // Step form
+  const [stepTitle, setStepTitle] = useState('');
   const [stepText, setStepText] = useState('');
   const [stepImageUrl, setStepImageUrl] = useState('');
 
@@ -57,10 +63,12 @@ export function AddRecipe({ onDone }: Props) {
     if (!stepText.trim()) return;
     const newStep: CookingStep = {
       id: `step_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      title: stepTitle.trim() || `Шаг ${cookingSteps.length + 1}`,
       text: stepText.trim(),
       imageUrl: stepImageUrl.trim() || undefined,
     };
     setCookingSteps([...cookingSteps, newStep]);
+    setStepTitle('');
     setStepText('');
     setStepImageUrl('');
   };
@@ -117,11 +125,17 @@ export function AddRecipe({ onDone }: Props) {
 
   const handleAddCustomMealType = () => {
     if (!newMealTypeName.trim()) return;
-    addCustomMealType(newMealTypeName.trim(), newMealTypeEmoji);
-    setMealType(`mt_${Date.now()}`);
+    addCustomMealType(newMealTypeName.trim(), newMealTypeEmoji, newMealTypeCollection);
     setNewMealTypeName('');
     setNewMealTypeEmoji('🍽️');
+    setNewMealTypeCollection(false);
     setShowMealTypeInput(false);
+  };
+
+  const togglePairedRecipe = (recipeId: string) => {
+    setPairedRecipeIds((prev) =>
+      prev.includes(recipeId) ? prev.filter((id) => id !== recipeId) : [...prev, recipeId]
+    );
   };
 
   const handleSubmit = () => {
@@ -135,19 +149,21 @@ export function AddRecipe({ onDone }: Props) {
       ingredients,
       mealType,
       cookingSteps: cookingSteps.length > 0 ? cookingSteps : undefined,
+      pairedRecipeIds: pairedRecipeIds.length > 0 ? pairedRecipeIds : undefined,
     });
     onDone();
   };
 
   const formatIngredient = (ing: Ingredient) => {
-    if (ing.amount && ing.unit) {
-      return `${ing.name} — ${ing.amount} ${ing.unit}`;
-    }
-    if (ing.amount) {
-      return `${ing.name} — ${ing.amount}`;
-    }
+    if (ing.amount && ing.unit) return `${ing.name} — ${ing.amount} ${ing.unit}`;
+    if (ing.amount) return `${ing.name} — ${ing.amount}`;
     return ing.name;
   };
+
+  // Получаем блюда из подборок для pairing
+  const collectionRecipes = collectionMealTypes.flatMap((mt) =>
+    (currentUser?.recipes || []).filter((r) => r.mealType === mt.id)
+  );
 
   return (
     <div className="space-y-5">
@@ -158,7 +174,7 @@ export function AddRecipe({ onDone }: Props) {
         <h2 className="text-xl font-bold text-gray-800">Новое блюдо</h2>
       </div>
 
-      {/* File Upload Button */}
+      {/* File Upload */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
           <Upload className="w-4 h-4" /> Загрузить медиа
@@ -183,7 +199,7 @@ export function AddRecipe({ onDone }: Props) {
       {/* Image URLs */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <ImageIcon className="w-4 h-4" /> Или добавьте ссылки на фото
+          <Link2 className="w-4 h-4" /> Или ссылки на фото
         </label>
         <div className="space-y-2">
           {imageUrls.map((url, index) => (
@@ -197,7 +213,7 @@ export function AddRecipe({ onDone }: Props) {
                 type="url"
                 value={url}
                 onChange={(e) => updateImageUrl(index, e.target.value)}
-                placeholder={`Фото ${index + 1}: https://...`}
+                placeholder="https://example.com/photo.jpg"
                 className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
               />
               {imageUrls.length > 1 && (
@@ -216,7 +232,7 @@ export function AddRecipe({ onDone }: Props) {
           className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" />
-          Добавить ещё фото
+          Добавить ещё ссылку
         </button>
 
         {/* Previews */}
@@ -233,7 +249,7 @@ export function AddRecipe({ onDone }: Props) {
         )}
       </div>
 
-      {/* Video URL */}
+      {/* Video */}
       {videoUrl && (
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Видео</label>
@@ -267,13 +283,13 @@ export function AddRecipe({ onDone }: Props) {
 
       {/* Meal Type */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Тип приёма пищи</label>
+        <label className="text-sm font-medium text-gray-700">Категория</label>
         <div className="grid grid-cols-3 gap-2">
           {allMealTypes.map((option) => (
             <button
               key={option.id}
               onClick={() => setMealType(option.id)}
-              className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+              className={`py-2.5 px-2 rounded-xl text-xs font-medium transition-all ${
                 mealType === option.id
                   ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -288,7 +304,7 @@ export function AddRecipe({ onDone }: Props) {
           className="w-full py-2 text-sm text-orange-600 hover:text-orange-700 flex items-center justify-center gap-1"
         >
           <Plus className="w-4 h-4" />
-          Добавить свой тип
+          Добавить свою категорию
         </button>
         <AnimatePresence>
           {showMealTypeInput && (
@@ -298,24 +314,35 @@ export function AddRecipe({ onDone }: Props) {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="flex gap-2 p-3 bg-orange-50 rounded-xl">
-                <input
-                  type="text"
-                  value={newMealTypeEmoji}
-                  onChange={(e) => setNewMealTypeEmoji(e.target.value)}
-                  className="w-16 px-3 py-2 rounded-lg border border-orange-200 text-center text-lg"
-                  maxLength={2}
-                />
-                <input
-                  type="text"
-                  value={newMealTypeName}
-                  onChange={(e) => setNewMealTypeName(e.target.value)}
-                  placeholder="Название"
-                  className="flex-1 px-3 py-2 rounded-lg border border-orange-200 text-sm"
-                />
+              <div className="p-3 bg-orange-50 rounded-xl space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newMealTypeEmoji}
+                    onChange={(e) => setNewMealTypeEmoji(e.target.value)}
+                    className="w-16 px-3 py-2 rounded-lg border border-orange-200 text-center text-lg"
+                    maxLength={2}
+                  />
+                  <input
+                    type="text"
+                    value={newMealTypeName}
+                    onChange={(e) => setNewMealTypeName(e.target.value)}
+                    placeholder="Название"
+                    className="flex-1 px-3 py-2 rounded-lg border border-orange-200 text-sm"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={newMealTypeCollection}
+                    onChange={(e) => setNewMealTypeCollection(e.target.checked)}
+                    className="rounded text-orange-500"
+                  />
+                  Это подборка (как гарниры, десерты)
+                </label>
                 <button
                   onClick={handleAddCustomMealType}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium"
+                  className="w-full py-2 bg-orange-500 text-white rounded-lg text-sm font-medium"
                 >
                   Добавить
                 </button>
@@ -351,7 +378,7 @@ export function AddRecipe({ onDone }: Props) {
               value={ingUnit}
               onChange={(e) => setIngUnit(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
-              placeholder="Ед. (г, шт)"
+              placeholder="г, шт, ст.л."
               className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
             />
           </div>
@@ -360,7 +387,7 @@ export function AddRecipe({ onDone }: Props) {
             className="w-full py-2 bg-orange-100 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors flex items-center justify-center gap-1"
           >
             <Plus className="w-4 h-4" />
-            Добавить ингредиент
+            Добавить
           </button>
         </div>
         {ingredients.length > 0 && (
@@ -380,6 +407,73 @@ export function AddRecipe({ onDone }: Props) {
         )}
       </div>
 
+      {/* Paired Recipes (подбор блюд из подборок) */}
+      {collectionRecipes.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+            <ChefHat className="w-4 h-4" /> Подать с...
+            <span className="text-xs text-gray-400 font-normal">(из подборок)</span>
+          </label>
+          <p className="text-xs text-gray-500">
+            Можно указать, с каким гарниром, соусом или напитком подавать это блюдо
+          </p>
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+            {collectionRecipes.map((recipe) => {
+              const mt = collectionMealTypes.find((m) => m.id === recipe.mealType);
+              const isSelected = pairedRecipeIds.includes(recipe.id);
+              return (
+                <button
+                  key={recipe.id}
+                  onClick={() => togglePairedRecipe(recipe.id)}
+                  className={`flex items-center gap-2 p-2 rounded-xl border-2 transition-all text-left ${
+                    isSelected
+                      ? 'border-orange-400 bg-orange-50'
+                      : 'border-gray-100 hover:border-gray-200'
+                  }`}
+                >
+                  <img
+                    src={getRecipeImage(recipe)}
+                    alt={recipe.name}
+                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-800 truncate">{recipe.name}</p>
+                    <p className="text-[10px] text-gray-500">{mt?.emoji} {mt?.name}</p>
+                  </div>
+                  {isSelected && (
+                    <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <X className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {pairedRecipeIds.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {pairedRecipeIds.map((id) => {
+                const recipe = collectionRecipes.find((r) => r.id === id);
+                if (!recipe) return null;
+                return (
+                  <span
+                    key={id}
+                    className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full flex items-center gap-1"
+                  >
+                    + {recipe.name}
+                    <button onClick={() => togglePairedRecipe(id)}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Cooking Steps */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -388,9 +482,9 @@ export function AddRecipe({ onDone }: Props) {
         </label>
         
         <div className="space-y-2">
-          {cookingSteps.map((step, index) => (
+          {cookingSteps.map((s, index) => (
             <motion.div
-              key={step.id}
+              key={s.id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100"
@@ -399,13 +493,14 @@ export function AddRecipe({ onDone }: Props) {
                 {index + 1}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-800">{step.text}</p>
-                {step.imageUrl && (
-                  <img src={step.imageUrl} alt={`Step ${index + 1}`} className="mt-2 w-full h-24 object-cover rounded-lg" />
+                <p className="text-sm font-semibold text-gray-800">{s.title}</p>
+                <p className="text-xs text-gray-600 mt-0.5">{s.text}</p>
+                {s.imageUrl && (
+                  <img src={s.imageUrl} alt={s.title} className="mt-2 w-full h-20 object-cover rounded-lg" />
                 )}
               </div>
               <button
-                onClick={() => handleRemoveStep(step.id)}
+                onClick={() => handleRemoveStep(s.id)}
                 className="flex-shrink-0 p-1 text-red-400 hover:text-red-600"
               >
                 <X className="w-4 h-4" />
@@ -417,17 +512,24 @@ export function AddRecipe({ onDone }: Props) {
         <div className="p-3 bg-gray-50 rounded-xl space-y-2">
           <input
             type="text"
+            value={stepTitle}
+            onChange={(e) => setStepTitle(e.target.value)}
+            placeholder={`Название шага (напр. "Подготовка")`}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium"
+          />
+          <textarea
             value={stepText}
             onChange={(e) => setStepText(e.target.value)}
-            placeholder={`Шаг ${cookingSteps.length + 1}: Описание действия...`}
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            placeholder={`Что делать на этом шаге...`}
+            rows={2}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none"
           />
           <div className="flex gap-2">
             <input
               type="text"
               value={stepImageUrl}
               onChange={(e) => setStepImageUrl(e.target.value)}
-              placeholder="Ссылка на фото (опционально)"
+              placeholder="Ссылка на фото"
               className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
             />
             <input

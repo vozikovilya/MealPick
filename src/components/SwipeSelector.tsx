@@ -31,15 +31,43 @@ export function SwipeSelector({ requestId, onDone }: Props) {
   const categoryMealType = allMealTypes.find((m) => m.id === request.category);
   const categoryLabel = categoryMealType ? `${categoryMealType.emoji} ${categoryMealType.name}` : request.category;
 
-  const subtitle = request.mode === 'category' && request.category
-    ? `Выберите из категории: ${categoryLabel}`
-    : `${fromUser?.name} предлагает выбрать`;
+  let subtitle = '';
+  if (request.mode === 'delivery') {
+    subtitle = `${fromUser?.name} предлагает заказать доставку 🚀`;
+  } else if (request.mode === 'category' && request.category) {
+    subtitle = `Выберите из категории: ${categoryLabel}`;
+  } else {
+    subtitle = `${fromUser?.name} предлагает выбрать`;
+  }
+
+  // Для доставки показываем карточки доставок
+  if (request.mode === 'delivery') {
+    const { deliveryOptions } = useStore();
+    const deliveries = (request.deliveryIds || [])
+      .map((id) => deliveryOptions.find((d) => d.id === id))
+      .filter(Boolean) as { id: string; name: string; emoji: string; description: string }[];
+
+    return (
+      <DeliverySelector
+        deliveries={deliveries}
+        fromUser={fromUser!}
+        senderMessage={request.message}
+        onSubmit={(selectedIds) => {
+          // Для доставки recipeIds = deliveryIds
+          respondToSwipeRequest(requestId, selectedIds);
+          onDone();
+        }}
+        onBack={onDone}
+      />
+    );
+  }
 
   return (
     <SwipeContent
       recipes={recipes}
       fromUser={fromUser!}
       subtitle={subtitle}
+      senderMessage={request.message}
       onSubmit={(selected) => {
         respondToSwipeRequest(requestId, selected);
         onDone();
@@ -49,16 +77,97 @@ export function SwipeSelector({ requestId, onDone }: Props) {
   );
 }
 
+function DeliverySelector({
+  deliveries,
+  fromUser,
+  senderMessage,
+  onSubmit,
+  onBack,
+}: {
+  deliveries: { id: string; name: string; emoji: string; description: string }[];
+  fromUser: { name: string; avatar: string };
+  senderMessage?: string;
+  onSubmit: (selectedIds: string[]) => void;
+  onBack: () => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <div className="flex-1">
+          <h2 className="text-lg font-bold text-gray-800">Выберите доставку</h2>
+          <p className="text-xs text-gray-500">{fromUser.avatar} {fromUser.name} предлагает</p>
+        </div>
+      </div>
+
+      {senderMessage && (
+        <div className="p-3 bg-pink-50 rounded-xl border border-pink-100">
+          <p className="text-sm text-pink-700 italic">💌 "{senderMessage}"</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {deliveries.map((delivery) => {
+          const isSelected = selected.includes(delivery.id);
+          return (
+            <button
+              key={delivery.id}
+              onClick={() =>
+                setSelected((prev) =>
+                  prev.includes(delivery.id) ? prev.filter((id) => id !== delivery.id) : [...prev, delivery.id]
+                )
+              }
+              className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-4 ${
+                isSelected
+                  ? 'border-orange-400 bg-orange-50'
+                  : 'border-gray-200 hover:border-orange-200 bg-white'
+              }`}
+            >
+              <span className="text-4xl">{delivery.emoji}</span>
+              <div className="flex-1 text-left">
+                <h4 className="font-semibold text-gray-800">{delivery.name}</h4>
+                <p className="text-xs text-gray-500">{delivery.description}</p>
+              </div>
+              <div
+                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
+                  isSelected ? 'bg-orange-500 border-orange-500' : 'border-gray-300'
+                }`}
+              >
+                {isSelected && <Check className="w-4 h-4 text-white" />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => onSubmit(selected)}
+        disabled={selected.length === 0}
+        className="w-full py-3.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-green-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+      >
+        <Send className="w-5 h-5" />
+        Отправить выбор ({selected.length})
+      </button>
+    </div>
+  );
+}
+
 function SwipeContent({
   recipes,
   fromUser,
   subtitle,
+  senderMessage,
   onSubmit,
   onBack,
 }: {
   recipes: Recipe[];
   fromUser: { name: string; avatar: string };
   subtitle: string;
+  senderMessage?: string;
   onSubmit: (selectedIds: string[]) => void;
   onBack: () => void;
 }) {
@@ -129,6 +238,13 @@ function SwipeContent({
           transition={{ duration: 0.3 }}
         />
       </div>
+
+      {/* Sender message */}
+      {senderMessage && (
+        <div className="p-3 bg-pink-50 rounded-xl border border-pink-100">
+          <p className="text-sm text-pink-700 italic">💌 "{senderMessage}"</p>
+        </div>
+      )}
 
       {/* Swipe hint */}
       <div className="flex justify-between px-4 text-xs text-gray-400">

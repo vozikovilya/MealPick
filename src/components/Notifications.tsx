@@ -64,6 +64,9 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                     )}
                   </div>
                   <p className="text-sm text-gray-600 mt-0.5">{notif.message}</p>
+                  {notif.senderMessage && (
+                    <p className="text-xs text-pink-600 italic mt-1">💌 "{notif.senderMessage}"</p>
+                  )}
                   <p className="text-xs text-gray-400 mt-1">
                     {new Date(notif.createdAt).toLocaleTimeString('ru-RU', {
                       hour: '2-digit',

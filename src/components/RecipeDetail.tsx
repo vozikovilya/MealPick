@@ -182,7 +182,8 @@ export function RecipeDetail({ recipe, onBack }: Props) {
                     )}
                   </div>
                   <div className="flex-1 pb-3">
-                    <p className="text-sm text-gray-800 leading-relaxed">{step.text}</p>
+                    <p className="text-sm font-semibold text-gray-800">{step.title}</p>
+                    <p className="text-sm text-gray-600 leading-relaxed mt-1">{step.text}</p>
                     {step.imageUrl && (
                       <img
                         src={step.imageUrl}

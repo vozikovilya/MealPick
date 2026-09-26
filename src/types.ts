@@ -7,6 +7,7 @@ export interface Ingredient {
 
 export interface CookingStep {
   id: string;
+  title: string;
   text: string;
   imageUrl?: string;
 }
@@ -20,6 +21,7 @@ export interface Recipe {
   ingredients: Ingredient[];
   mealType: string;
   cookingSteps?: CookingStep[];
+  pairedRecipeIds?: string[]; // блюда из подборок (гарниры и т.д.)
   ownerId: string;
   createdAt: number;
 }
@@ -29,6 +31,14 @@ export interface MealTypeOption {
   name: string;
   emoji: string;
   isDefault: boolean;
+  isCollection?: boolean; // для подборок: гарниры, десерты и т.д.
+}
+
+export interface DeliveryOption {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
 }
 
 export interface User {
@@ -46,8 +56,10 @@ export interface SwipeRequest {
   status: 'pending' | 'completed';
   createdAt: number;
   selectedRecipeIds?: string[];
-  mode?: 'category' | 'select';
+  mode?: 'category' | 'select' | 'delivery';
   category?: string;
+  message?: string; // милое сообщение
+  deliveryIds?: string[]; // выбранные доставки
 }
 
 export interface Notification {
@@ -55,6 +67,7 @@ export interface Notification {
   type: 'swipe_request' | 'swipe_response';
   fromUserId: string;
   message: string;
+  senderMessage?: string; // милое сообщение от отправителя
   requestId?: string;
   read: boolean;
   createdAt: number;

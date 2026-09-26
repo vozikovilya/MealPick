@@ -57,7 +57,7 @@ export function RecipeList() {
         <div className="flex items-center gap-3">
           <span className="text-3xl">{currentUser.avatar}</span>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Мои блюда</h2>
+            <h2 className="text-lg font-bold text-gray-800">Моё меню</h2>
             <p className="text-sm text-gray-500">{currentUser.recipes.length} {currentUser.recipes.length === 1 ? 'блюдо' : currentUser.recipes.length < 5 ? 'блюда' : 'блюд'}</p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from './store';
 import { RecipeList } from './components/RecipeList';
 import { AddRecipe } from './components/AddRecipe';
@@ -7,14 +7,15 @@ import { SwipeSelector } from './components/SwipeSelector';
 import { Notifications } from './components/Notifications';
 import { UserSwitcher } from './components/UserSwitcher';
 import { SelectedResults } from './components/SelectedResults';
-import { ChefHat, Bell, Send, UtensilsCrossed } from 'lucide-react';
+import { PendingNotificationModal } from './components/PendingNotificationModal';
+import { ChefHat, Bell, Send, UtensilsCrossed, Plus } from 'lucide-react';
 
 type Screen = 'recipes' | 'add' | 'send' | 'swipe' | 'notifications' | 'results';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('recipes');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
-  const { notifications, currentUserId } = useStore();
+  const { notifications, currentUserId, pendingNotification, setPendingNotification, users } = useStore();
 
   const unreadCount = notifications.filter((n) => !n.read && n.type === 'swipe_request').length;
 
@@ -31,7 +32,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-orange-100 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-orange-100 shadow-sm">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ChefHat className="w-7 h-7 text-orange-500" />
@@ -85,52 +86,84 @@ function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-orange-100 shadow-lg">
-        <div className="max-w-lg mx-auto px-4 py-2 flex justify-around">
-          <button
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-orange-100 shadow-lg z-30">
+        <div className="max-w-lg mx-auto px-4 py-2 flex justify-around items-center">
+          <NavButton
+            active={screen === 'recipes'}
             onClick={() => setScreen('recipes')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-              screen === 'recipes' ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <UtensilsCrossed className="w-5 h-5" />
-            <span className="text-xs font-medium">Блюда</span>
-          </button>
-          <button
+            icon={<UtensilsCrossed className="w-5 h-5" />}
+            label="Меню"
+          />
+          <NavButton
+            active={screen === 'add'}
             onClick={() => setScreen('add')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-              screen === 'add' ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <span className="text-xl">➕</span>
-            <span className="text-xs font-medium">Добавить</span>
-          </button>
-          <button
+            icon={<Plus className="w-5 h-5" />}
+            label="Добавить"
+          />
+          <NavButton
+            active={screen === 'send'}
             onClick={() => setScreen('send')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-              screen === 'send' ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <Send className="w-5 h-5" />
-            <span className="text-xs font-medium">Спросить</span>
-          </button>
-          <button
+            icon={<Send className="w-5 h-5" />}
+            label="Спросить"
+          />
+          <NavButton
+            active={screen === 'notifications'}
             onClick={() => setScreen('notifications')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all relative ${
-              screen === 'notifications' ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <Bell className="w-5 h-5" />
-            <span className="text-xs font-medium">Запросы</span>
-            {unreadCount > 0 && (
-              <span className="absolute top-0 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
-                {unreadCount}
-              </span>
-            )}
-          </button>
+            icon={<Bell className="w-5 h-5" />}
+            label="Запросы"
+            badge={unreadCount}
+          />
         </div>
       </nav>
+
+      {/* Полноэкранное модальное уведомление */}
+      {pendingNotification && (
+        <PendingNotificationModal
+          notification={pendingNotification}
+          onClose={() => setPendingNotification(null)}
+          onAction={() => {
+            const notif = pendingNotification;
+            setPendingNotification(null);
+            if (notif.type === 'swipe_request' && notif.requestId) {
+              handleOpenSwipe(notif.requestId);
+            } else if (notif.type === 'swipe_response' && notif.requestId) {
+              handleViewResults(notif.requestId);
+            }
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function NavButton({
+  active,
+  onClick,
+  icon,
+  label,
+  badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center gap-0.5 p-2 rounded-xl transition-all min-w-[60px] relative ${
+        active ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-gray-600'
+      }`}
+    >
+      <div className="h-5 w-5 flex items-center justify-center">{icon}</div>
+      <span className="text-[11px] font-medium leading-tight">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute -top-0.5 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }
 
