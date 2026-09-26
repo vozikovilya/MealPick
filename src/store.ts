@@ -79,7 +79,10 @@ const defaultUsers: User[] = [
         id: 'r1',
         name: 'Блинчики с творогом',
         description: 'Нежные блинчики с творожной начинкой и мёдом',
-        imageUrls: ['https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400',
+          'https://images.unsplash.com/photo-1519676867240-f03562e4571?w=400'
+        ],
         ingredients: [ing('Мука', '200', 'г'), ing('Молоко', '500', 'мл'), ing('Яйца', '2', 'шт'), ing('Творог', '300', 'г'), ing('Мёд', '2', 'ст.л.')],
         mealType: 'breakfast',
         cookingSteps: [
@@ -94,7 +97,10 @@ const defaultUsers: User[] = [
         id: 'r2',
         name: 'Паста Карбонара',
         description: 'Классическая итальянская паста с беконом и сливочным соусом',
-        imageUrls: ['https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400',
+          'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400'
+        ],
         ingredients: [ing('Спагетти', '400', 'г'), ing('Бекон', '200', 'г'), ing('Яйца', '3', 'шт'), ing('Пармезан', '100', 'г')],
         mealType: 'lunch',
         pairedRecipeIds: ['side2'],
@@ -105,7 +111,10 @@ const defaultUsers: User[] = [
         id: 'r3',
         name: 'Лосось на гриле',
         description: 'Стейк лосося с овощами гриль и лимонным соусом',
-        imageUrls: ['https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400',
+          'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400'
+        ],
         ingredients: [ing('Лосось', '2', 'стейка'), ing('Лимон', '1', 'шт'), ing('Брокколи', '200', 'г')],
         mealType: 'dinner',
         pairedRecipeIds: ['side1'],
@@ -116,7 +125,10 @@ const defaultUsers: User[] = [
         id: 'r4',
         name: 'Овсянка с ягодами',
         description: 'Полезная овсяная каша со свежими ягодами и орехами',
-        imageUrls: ['https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=400',
+          'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=400'
+        ],
         ingredients: [ing('Овсяные хлопья', '100', 'г'), ing('Молоко', '250', 'мл'), ing('Черника', '50', 'г'), ing('Мёд', '1', 'ст.л.')],
         mealType: 'breakfast',
         pairedRecipeIds: ['drink1'],
@@ -128,7 +140,10 @@ const defaultUsers: User[] = [
         id: 'side1',
         name: 'Гречка',
         description: 'Рассыпчатая гречневая каша',
-        imageUrls: ['https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400',
+          'https://images.unsplash.com/photo-1585996838523-4a1b9a5e4a7d?w=400'
+        ],
         ingredients: [ing('Гречка', '200', 'г'), ing('Вода', '400', 'мл'), ing('Соль')],
         mealType: 'sides',
         ownerId: 'user1',
@@ -138,7 +153,10 @@ const defaultUsers: User[] = [
         id: 'side2',
         name: 'Пюре картофельное',
         description: 'Нежное пюре со сливочным маслом',
-        imageUrls: ['https://images.unsplash.com/photo-1600167705956-6b8633555b92?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1600167705956-6b8633555b92?w=400',
+          'https://images.unsplash.com/photo-1633478062482-5a1e5f6e4a7d?w=400'
+        ],
         ingredients: [ing('Картофель', '1', 'кг'), ing('Молоко', '150', 'мл'), ing('Масло', '50', 'г')],
         mealType: 'sides',
         ownerId: 'user1',
@@ -148,7 +166,10 @@ const defaultUsers: User[] = [
         id: 'dessert1',
         name: 'Панна-котта',
         description: 'Итальянский сливочный десерт с ягодами',
-        imageUrls: ['https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400',
+          'https://images.unsplash.com/photo-1572573260193-4a1e4a3d6f7d?w=400'
+        ],
         ingredients: [ing('Сливки', '500', 'мл'), ing('Сахар', '100', 'г'), ing('Желатин', '10', 'г')],
         mealType: 'desserts',
         ownerId: 'user1',
@@ -158,7 +179,10 @@ const defaultUsers: User[] = [
         id: 'dessert2',
         name: 'Чизкейк',
         description: 'Классический чизкейк Нью-Йорк',
-        imageUrls: ['https://images.unsplash.com/photo-1533134242443-d4fd21530c7d?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1533134242443-d4fd21530c7d?w=400',
+          'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400'
+        ],
         ingredients: [ing('Сыр', '500', 'г'), ing('Сахар', '150', 'г'), ing('Яйца', '3', 'шт')],
         mealType: 'desserts',
         ownerId: 'user1',
@@ -168,7 +192,10 @@ const defaultUsers: User[] = [
         id: 'drink1',
         name: 'Смузи ягодный',
         description: 'Освежающий смузи из свежих ягод',
-        imageUrls: ['https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=400',
+          'https://images.unsplash.com/photo-1502741338009-cac2772e229c?w=400'
+        ],
         ingredients: [ing('Клубника', '100', 'г'), ing('Банан', '1', 'шт'), ing('Йогурт', '200', 'мл')],
         mealType: 'drinks',
         ownerId: 'user1',
@@ -178,7 +205,10 @@ const defaultUsers: User[] = [
         id: 'drink2',
         name: 'Лимонад',
         description: 'Домашний лимонад с мятой',
-        imageUrls: ['https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400',
+          'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=400'
+        ],
         ingredients: [ing('Лимоны', '3', 'шт'), ing('Сахар', '100', 'г'), ing('Мята')],
         mealType: 'drinks',
         ownerId: 'user1',
@@ -188,7 +218,10 @@ const defaultUsers: User[] = [
         id: 'sauce1',
         name: 'Песто',
         description: 'Итальянский соус из базилика',
-        imageUrls: ['https://images.unsplash.com/photo-1601314167039-470909f76620?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1601314167039-470909f76620?w=400',
+          'https://images.unsplash.com/photo-1601577303509-37a2f853a1e0?w=400'
+        ],
         ingredients: [ing('Базилик', '50', 'г'), ing('Орехи', '30', 'г'), ing('Пармезан', '50', 'г'), ing('Оливковое масло', '100', 'мл')],
         mealType: 'sauces',
         ownerId: 'user1',
@@ -198,7 +231,10 @@ const defaultUsers: User[] = [
         id: 'sauce2',
         name: 'Ткемали',
         description: 'Грузинский соус из алычи',
-        imageUrls: ['https://images.unsplash.com/photo-1472476443507-c7a5948772fc?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?w=400',
+          'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?w=400&sat=-50'
+        ],
         ingredients: [ing('Алыча', '500', 'г'), ing('Чеснок', '3', 'зубч.'), ing('Кинза'), ing('Соль')],
         mealType: 'sauces',
         ownerId: 'user1',
@@ -215,7 +251,10 @@ const defaultUsers: User[] = [
         id: 'r5',
         name: 'Сырники',
         description: 'Пышные сырники со сметаной и вареньем',
-        imageUrls: ['https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=400',
+          'https://images.unsplash.com/photo-1631292784640-2b24be784d5d?w=400'
+        ],
         ingredients: [ing('Творог', '500', 'г'), ing('Яйца', '2', 'шт'), ing('Мука', '3', 'ст.л.'), ing('Сахар', '2', 'ст.л.')],
         mealType: 'breakfast',
         ownerId: 'user2',
@@ -225,7 +264,10 @@ const defaultUsers: User[] = [
         id: 'r6',
         name: 'Том Ям',
         description: 'Тайский острый суп с креветками и грибами',
-        imageUrls: ['https://images.unsplash.com/photo-1548943487-a2e4e43b4853?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1548943487-a2e4e43b4853?w=400',
+          'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400'
+        ],
         ingredients: [ing('Креветки', '300', 'г'), ing('Кокосовое молоко', '400', 'мл'), ing('Грибы', '200', 'г')],
         mealType: 'lunch',
         ownerId: 'user2',
@@ -235,7 +277,10 @@ const defaultUsers: User[] = [
         id: 'r7',
         name: 'Тирамису',
         description: 'Классический итальянский десерт с маскарпоне и кофе',
-        imageUrls: ['https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400',
+          'https://images.unsplash.com/photo-1579954115545-a95591f28bfc?w=400'
+        ],
         ingredients: [ing('Маскарпоне', '500', 'г'), ing('Савоярди', '200', 'г'), ing('Кофе', '300', 'мл')],
         mealType: 'dinner',
         cookingSteps: [
@@ -251,7 +296,10 @@ const defaultUsers: User[] = [
         id: 'r8',
         name: 'Боул с курицей',
         description: 'Полезный боул с курицей гриль, киноа и овощами',
-        imageUrls: ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'],
+        imageUrls: [
+          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+          'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400'
+        ],
         ingredients: [ing('Куриная грудка', '1', 'шт'), ing('Киноа', '150', 'г'), ing('Авокадо', '1', 'шт')],
         mealType: 'lunch',
         pairedRecipeIds: ['side3'],

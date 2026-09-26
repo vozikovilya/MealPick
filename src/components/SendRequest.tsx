@@ -28,7 +28,7 @@ export function SendRequest({ onDone }: Props) {
   
   const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
   const [sendMode, setSendMode] = useState<SendMode>('category');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
   const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
   const [message, setMessage] = useState('');
@@ -61,10 +61,11 @@ export function SendRequest({ onDone }: Props) {
     let category: string | undefined;
     let deliveryIds: string[] | undefined;
 
-    if (sendMode === 'category' && selectedCategory) {
-      recipeIds = getRecipesByCategory(selectedCategory).map((r) => r.id);
+    if (sendMode === 'category' && selectedCategories.length > 0) {
+      // Собираем блюда из всех выбранных категорий
+      recipeIds = selectedCategories.flatMap(cat => getRecipesByCategory(cat).map((r) => r.id));
       mode = 'category';
-      category = selectedCategory;
+      category = selectedCategories[0]; // Для обратной совместимости
     } else if (sendMode === 'select') {
       recipeIds = selectedRecipes;
       mode = 'select';
@@ -158,7 +159,7 @@ export function SendRequest({ onDone }: Props) {
                 }`}
               >
                 <List className="w-5 h-5" />
-                <span>Категория</span>
+                <span>Категории</span>
               </button>
               <button
                 onClick={() => setSendMode('select')}
@@ -188,14 +189,20 @@ export function SendRequest({ onDone }: Props) {
           {/* Category Selection */}
           {sendMode === 'category' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-700">Выберите категорию</h3>
+              <h3 className="text-sm font-semibold text-gray-700">Выберите категории (можно несколько)</h3>
               <div className="grid grid-cols-2 gap-3">
                 {categoryOptions.map((option) => {
-                  const isSelected = selectedCategory === option.value;
+                  const isSelected = selectedCategories.includes(option.value);
                   return (
                     <button
                       key={option.value}
-                      onClick={() => setSelectedCategory(option.value)}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedCategories(selectedCategories.filter(c => c !== option.value));
+                        } else {
+                          setSelectedCategories([...selectedCategories, option.value]);
+                        }
+                      }}
                       className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
                         isSelected
                           ? 'border-orange-400 bg-orange-50 shadow-md'
@@ -218,6 +225,11 @@ export function SendRequest({ onDone }: Props) {
                   );
                 })}
               </div>
+              {selectedCategories.length > 0 && (
+                <p className="text-xs text-gray-500 text-center">
+                  Выбрано категорий: {selectedCategories.length}
+                </p>
+              )}
             </motion.div>
           )}
 
@@ -227,42 +239,106 @@ export function SendRequest({ onDone }: Props) {
               <h3 className="text-sm font-semibold text-gray-700">
                 Выберите блюда ({selectedRecipes.length} выбрано)
               </h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {currentUser?.recipes.map((recipe) => {
-                  const mt = allMealTypes.find((m) => m.id === recipe.mealType);
+              <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                {/* Основные категории */}
+                {allMealTypes.filter(mt => !mt.isCollection).map((mealType) => {
+                  const recipes = currentUser?.recipes.filter(r => r.mealType === mealType.id) || [];
+                  if (recipes.length === 0) return null;
+                  
                   return (
-                    <div
-                      key={recipe.id}
-                      onClick={() => toggleRecipe(recipe.id)}
-                      className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
-                        selectedRecipes.includes(recipe.id)
-                          ? 'border-orange-300 bg-orange-50'
-                          : 'border-gray-100 hover:border-gray-200'
-                      }`}
-                    >
-                      <img
-                        src={getRecipeImage(recipe)}
-                        alt={recipe.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-gray-800 truncate">{recipe.name}</h4>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs">{mt?.emoji}</span>
-                          <span className="text-xs text-gray-500">{mt?.name}</span>
-                        </div>
+                    <div key={mealType.id}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">{mealType.emoji}</span>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          {mealType.name}
+                        </h4>
+                        <span className="text-xs text-gray-400">({recipes.length})</span>
                       </div>
-                      <div
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                          selectedRecipes.includes(recipe.id)
-                            ? 'bg-orange-500 border-orange-500'
-                            : 'border-gray-300'
-                        }`}
-                      >
-                        {selectedRecipes.includes(recipe.id) && <Check className="w-4 h-4 text-white" />}
+                      <div className="space-y-2">
+                        {recipes.map((recipe) => (
+                          <div
+                            key={recipe.id}
+                            onClick={() => toggleRecipe(recipe.id)}
+                            className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                              selectedRecipes.includes(recipe.id)
+                                ? 'border-orange-300 bg-orange-50'
+                                : 'border-gray-100 hover:border-gray-200'
+                            }`}
+                          >
+                            <img
+                              src={getRecipeImage(recipe)}
+                              alt={recipe.name}
+                              className="w-12 h-12 rounded-lg object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-medium text-gray-800 truncate">{recipe.name}</h4>
+                            </div>
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                selectedRecipes.includes(recipe.id)
+                                  ? 'bg-orange-500 border-orange-500'
+                                  : 'border-gray-300'
+                              }`}
+                            >
+                              {selectedRecipes.includes(recipe.id) && <Check className="w-4 h-4 text-white" />}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Подборки */}
+                {allMealTypes.filter(mt => mt.isCollection).map((mealType) => {
+                  const recipes = currentUser?.recipes.filter(r => r.mealType === mealType.id) || [];
+                  if (recipes.length === 0) return null;
+                  
+                  return (
+                    <div key={mealType.id}>
+                      <div className="flex items-center gap-2 mb-2 pt-2 border-t border-gray-100">
+                        <span className="text-lg">{mealType.emoji}</span>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          {mealType.name}
+                        </h4>
+                        <span className="text-xs text-gray-400">({recipes.length})</span>
+                      </div>
+                      <div className="space-y-2">
+                        {recipes.map((recipe) => (
+                          <div
+                            key={recipe.id}
+                            onClick={() => toggleRecipe(recipe.id)}
+                            className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                              selectedRecipes.includes(recipe.id)
+                                ? 'border-orange-300 bg-orange-50'
+                                : 'border-gray-100 hover:border-gray-200'
+                            }`}
+                          >
+                            <img
+                              src={getRecipeImage(recipe)}
+                              alt={recipe.name}
+                              className="w-12 h-12 rounded-lg object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-medium text-gray-800 truncate">{recipe.name}</h4>
+                            </div>
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                selectedRecipes.includes(recipe.id)
+                                  ? 'bg-orange-500 border-orange-500'
+                                  : 'border-gray-300'
+                              }`}
+                            >
+                              {selectedRecipes.includes(recipe.id) && <Check className="w-4 h-4 text-white" />}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );
@@ -338,7 +414,7 @@ export function SendRequest({ onDone }: Props) {
             onClick={handleSend}
             disabled={
               !selectedPartner ||
-              (sendMode === 'category' && !selectedCategory) ||
+              (sendMode === 'category' && selectedCategories.length === 0) ||
               (sendMode === 'select' && selectedRecipes.length === 0) ||
               (sendMode === 'delivery' && selectedDeliveries.length === 0)
             }
