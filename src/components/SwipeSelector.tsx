@@ -235,7 +235,7 @@ function SwipeCard({
         {/* Image */}
         <div className="relative h-56">
           <img
-            src={recipe.imageUrl}
+            src={recipe.imageUrls[0]}
             alt={recipe.name}
             className="w-full h-full object-cover"
             onError={(e) => {
@@ -338,7 +338,7 @@ function SummaryScreen({
                 className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100"
               >
                 <img
-                  src={recipe.imageUrl}
+                  src={recipe.imageUrls[0]}
                   alt={recipe.name}
                   className="w-10 h-10 rounded-lg object-cover"
                   onError={(e) => {
@@ -365,7 +365,7 @@ function SummaryScreen({
                 className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 opacity-60"
               >
                 <img
-                  src={recipe.imageUrl}
+                  src={recipe.imageUrls[0]}
                   alt={recipe.name}
                   className="w-10 h-10 rounded-lg object-cover grayscale"
                   onError={(e) => {

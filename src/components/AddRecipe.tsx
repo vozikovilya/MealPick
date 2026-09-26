@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { ArrowLeft, Plus, X, Image } from 'lucide-react';
+import { ArrowLeft, Plus, X, Image, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface Props {
   onDone: () => void;
@@ -10,7 +11,7 @@ export function AddRecipe({ onDone }: Props) {
   const { addRecipe } = useStore();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>(['']);
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner'>('breakfast');
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [newIngredient, setNewIngredient] = useState('');
@@ -26,12 +27,28 @@ export function AddRecipe({ onDone }: Props) {
     setIngredients(ingredients.filter((_, i) => i !== index));
   };
 
+  const addImageField = () => {
+    setImageUrls([...imageUrls, '']);
+  };
+
+  const removeImageField = (index: number) => {
+    if (imageUrls.length <= 1) return;
+    setImageUrls(imageUrls.filter((_, i) => i !== index));
+  };
+
+  const updateImageUrl = (index: number, url: string) => {
+    const newUrls = [...imageUrls];
+    newUrls[index] = url;
+    setImageUrls(newUrls);
+  };
+
   const handleSubmit = () => {
     if (!name.trim()) return;
+    const validUrls = imageUrls.filter((url) => url.trim());
     addRecipe({
       name: name.trim(),
       description: description.trim(),
-      imageUrl: imageUrl.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+      imageUrls: validUrls.length > 0 ? validUrls : ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'],
       ingredients,
       mealType,
     });
@@ -53,21 +70,56 @@ export function AddRecipe({ onDone }: Props) {
         <h2 className="text-xl font-bold text-gray-800">Новый рецепт</h2>
       </div>
 
-      {/* Image URL */}
+      {/* Image URLs */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <Image className="w-4 h-4" /> Фото блюда
+          <Image className="w-4 h-4" /> Фотографии блюда
+          <span className="text-xs text-gray-400 font-normal">(можно несколько)</span>
         </label>
-        <input
-          type="url"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://example.com/photo.jpg"
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
-        />
-        {imageUrl && (
-          <div className="w-full h-32 rounded-xl overflow-hidden">
-            <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+        <div className="space-y-2">
+          {imageUrls.map((url, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-2"
+            >
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => updateImageUrl(index, e.target.value)}
+                placeholder={`Фото ${index + 1}: https://example.com/photo.jpg`}
+                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
+              />
+              {imageUrls.length > 1 && (
+                <button
+                  onClick={() => removeImageField(index)}
+                  className="px-3 py-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </motion.div>
+          ))}
+        </div>
+        <button
+          onClick={addImageField}
+          className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Добавить ещё фото
+        </button>
+        
+        {/* Image previews */}
+        {imageUrls.some((url) => url.trim()) && (
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {imageUrls
+              .filter((url) => url.trim())
+              .map((url, index) => (
+                <div key={index} className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-gray-200">
+                  <img src={url} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                </div>
+              ))}
           </div>
         )}
       </div>

@@ -66,15 +66,14 @@ export function SelectedResults({ requestId, onBack }: Props) {
                   transition={{ delay: index * 0.1 }}
                   className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100"
                 >
-                  <img
-                    src={recipe.imageUrl}
-                    alt={recipe.name}
-                    className="w-14 h-14 rounded-xl object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="flex-1">
+                <img
+                  src={recipe.imageUrls[0]}
+                  alt={recipe.name}
+                  className="w-14 h-14 rounded-xl object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />                  <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{recipe.name}</h4>
                     <p className="text-xs text-gray-500">{recipe.description}</p>
                     <div className="flex flex-wrap gap-1 mt-1.5">
@@ -114,7 +113,7 @@ export function SelectedResults({ requestId, onBack }: Props) {
                   className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 opacity-50"
                 >
                   <img
-                    src={recipe.imageUrl}
+                    src={recipe.imageUrls[0]}
                     alt={recipe.name}
                     className="w-10 h-10 rounded-lg object-cover grayscale"
                     onError={(e) => {

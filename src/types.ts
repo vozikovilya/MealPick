@@ -2,7 +2,7 @@ export interface Recipe {
   id: string;
   name: string;
   description: string;
-  imageUrl: string;
+  imageUrls: string[];
   ingredients: string[];
   mealType: 'breakfast' | 'lunch' | 'dinner';
   ownerId: string;

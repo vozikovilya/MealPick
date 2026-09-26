@@ -242,7 +242,7 @@ export function SendRequest({ onDone }: Props) {
                       }`}
                     >
                       <img
-                        src={recipe.imageUrl}
+                        src={recipe.imageUrls[0]}
                         alt={recipe.name}
                         className="w-12 h-12 rounded-lg object-cover"
                         onError={(e) => {
