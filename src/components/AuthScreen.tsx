@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function AuthScreen({ onAuth }: Props) {
-  const { login, register, users } = useStore();
+  const { login, register, users, currentUserId } = useStore();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -18,6 +18,19 @@ export function AuthScreen({ onAuth }: Props) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Автоматический вход для демо-пользователя при первом запуске
+  useEffect(() => {
+    if (!currentUserId && users.length > 0) {
+      const demoUser = users.find(u => u.email === 'vozikov-ilya@mail.ru');
+      if (demoUser) {
+        const result = login(demoUser.email, demoUser.password);
+        if (result.success) {
+          onAuth();
+        }
+      }
+    }
+  }, [currentUserId, users]);
 
   const handleDemoLogin = () => {
     const result = login('vozikov-ilya@mail.ru', 'ilya');

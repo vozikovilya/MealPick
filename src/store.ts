@@ -511,25 +511,31 @@ export const useStore = create<AppState>()(
       name: 'meal-picker-storage',
       version: 7,
       migrate: (persistedState: any) => {
-        // Проверяем, есть ли демо-пользователь Илья
-        const hasIlya = persistedState?.users?.some((u: any) => u.email === 'vozikov-ilya@mail.ru');
+        // Если есть сохраненные данные - используем их, не перезаписываем
+        if (persistedState?.users && persistedState.users.length > 0) {
+          return {
+            users: persistedState.users,
+            currentUserId: persistedState.currentUserId || null,
+            familyProfile: persistedState.familyProfile || null,
+            swipeRequests: persistedState.swipeRequests || [],
+            notifications: persistedState.notifications || [],
+            customMealTypes: persistedState.customMealTypes || [],
+            deliveryOptions: persistedState.deliveryOptions || defaultDeliveryOptions,
+            pendingNotification: null,
+          };
+        }
         
-        // Если нет Ильи или нет пользователей - используем дефолтного
-        const users = hasIlya ? persistedState?.users : [defaultUser];
-        
-        // Автологин для демо
-        const currentUserId = users?.find((u: any) => u.email === 'vozikov-ilya@mail.ru')?.id || null;
-        
+        // Если нет данных - используем дефолтного пользователя
         return {
-          users,
-          currentUserId,
-          familyProfile: persistedState?.familyProfile || null,
-          swipeRequests: persistedState?.swipeRequests || [],
-          notifications: persistedState?.notifications || [],
-          customMealTypes: persistedState?.customMealTypes || [],
-          deliveryOptions: persistedState?.deliveryOptions || defaultDeliveryOptions,
+          users: [defaultUser],
+          currentUserId: defaultUser.id,
+          familyProfile: null,
+          swipeRequests: [],
+          notifications: [],
+          customMealTypes: [],
+          deliveryOptions: defaultDeliveryOptions,
           pendingNotification: null,
-        } as AppState;
+        };
       },
     }
   )
