@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { ChefHat, Mail, Lock, User, AtSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function AuthScreen({ onAuth }: Props) {
-  const { login, register } = useStore();
+  const { login, register, users } = useStore();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -18,6 +18,15 @@ export function AuthScreen({ onAuth }: Props) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleDemoLogin = () => {
+    const result = login('vozikov-ilya@mail.ru', 'ilya');
+    if (result.success) {
+      onAuth();
+    } else {
+      setError(result.message);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,9 +188,16 @@ export function AuthScreen({ onAuth }: Props) {
           {/* Demo credentials */}
           {mode === 'login' && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-              <p className="text-xs text-blue-700 font-medium mb-1">Демо-доступ:</p>
-              <p className="text-xs text-blue-600">Email: vozikov-ilya@mail.ru</p>
-              <p className="text-xs text-blue-600">Пароль: ilya</p>
+              <p className="text-xs text-blue-700 font-medium mb-2">Демо-доступ:</p>
+              <p className="text-xs text-blue-600 mb-2">Email: vozikov-ilya@mail.ru</p>
+              <p className="text-xs text-blue-600 mb-3">Пароль: ilya</p>
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                className="w-full py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Войти как Илья
+              </button>
             </div>
           )}
         </div>

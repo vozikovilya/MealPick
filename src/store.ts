@@ -509,12 +509,20 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'meal-picker-storage',
-      version: 6,
+      version: 7,
       migrate: (persistedState: any) => {
-        // Полная миграция на новую структуру
+        // Проверяем, есть ли демо-пользователь Илья
+        const hasIlya = persistedState?.users?.some((u: any) => u.email === 'vozikov-ilya@mail.ru');
+        
+        // Если нет Ильи или нет пользователей - используем дефолтного
+        const users = hasIlya ? persistedState?.users : [defaultUser];
+        
+        // Автологин для демо
+        const currentUserId = users?.find((u: any) => u.email === 'vozikov-ilya@mail.ru')?.id || null;
+        
         return {
-          users: persistedState?.users || [defaultUser],
-          currentUserId: persistedState?.currentUserId || null,
+          users,
+          currentUserId,
           familyProfile: persistedState?.familyProfile || null,
           swipeRequests: persistedState?.swipeRequests || [],
           notifications: persistedState?.notifications || [],
