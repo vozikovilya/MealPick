@@ -83,7 +83,7 @@ export function SelectedResults({ requestId, onBack }: Props) {
                           key={i}
                           className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full"
                         >
-                          {ing}
+                          {ing.name}
                         </span>
                       ))}
                       {recipe.ingredients.length > 4 && (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useStore } from '../store';
-import { ArrowLeft, Send, Check, Coffee, Sun, Moon, List } from 'lucide-react';
+import { useStore, useAllMealTypes } from '../store';
+import { ArrowLeft, Send, Check, List } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getRecipeImage } from '../utils';
 
@@ -72,11 +72,13 @@ export function SendRequest({ onDone }: Props) {
     );
   }
 
-  const categoryOptions = [
-    { value: 'breakfast', label: 'Завтрак', emoji: '🌅', icon: Coffee, count: getRecipesByCategory('breakfast').length },
-    { value: 'lunch', label: 'Обед', emoji: '☀️', icon: Sun, count: getRecipesByCategory('lunch').length },
-    { value: 'dinner', label: 'Ужин', emoji: '🌙', icon: Moon, count: getRecipesByCategory('dinner').length },
-  ];
+  const allMealTypes = useAllMealTypes();
+  const categoryOptions = allMealTypes.map((mt) => ({
+    value: mt.id,
+    label: mt.name,
+    emoji: mt.emoji,
+    count: getRecipesByCategory(mt.id).length,
+  })).filter((opt) => opt.count > 0);
 
   return (
     <div className="space-y-5">
@@ -128,7 +130,7 @@ export function SendRequest({ onDone }: Props) {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <Coffee className="w-4 h-4" />
+                <span className="text-lg">📋</span>
                 По категории
               </button>
               <button
@@ -153,9 +155,8 @@ export function SendRequest({ onDone }: Props) {
               className="space-y-3"
             >
               <h3 className="text-sm font-semibold text-gray-700">Выберите категорию</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {categoryOptions.map((option) => {
-                  const Icon = option.icon;
                   const isSelected = selectedCategory === option.value;
                   const hasRecipes = option.count > 0;
                   

@@ -1,39 +1,39 @@
 import { useState } from 'react';
-import { useStore } from '../store';
+import { useStore, useAllMealTypes } from '../store';
 import { Recipe } from '../types';
-import { Clock, Trash2, ChevronDown, ChevronRight, List, Grid3X3, Image } from 'lucide-react';
+import { Clock, Trash2, ChevronDown, ChevronRight, List, Grid3X3, Image, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRecipeImage, getRecipeImages, FALLBACK_IMAGE } from '../utils';
+import { RecipeDetail } from './RecipeDetail';
 
 type ViewMode = 'list' | 'grid';
 
 export function RecipeList() {
   const { users, currentUserId, deleteRecipe } = useStore();
+  const allMealTypes = useAllMealTypes();
   const currentUser = users.find((u) => u.id === currentUserId);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   if (!currentUser || currentUser.recipes.length === 0) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">🍽️</div>
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">Пока нет рецептов</h2>
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Пока нет блюд</h2>
         <p className="text-gray-500">Добавьте свои любимые блюда, чтобы потом спросить партнёра!</p>
       </div>
     );
   }
 
-  const mealTypeLabels: Record<string, { label: string; emoji: string }> = {
-    breakfast: { label: 'Завтрак', emoji: '🌅' },
-    lunch: { label: 'Обед', emoji: '☀️' },
-    dinner: { label: 'Ужин', emoji: '🌙' },
-  };
-
-  const groupedRecipes = {
-    breakfast: currentUser.recipes.filter((r) => r.mealType === 'breakfast'),
-    lunch: currentUser.recipes.filter((r) => r.mealType === 'lunch'),
-    dinner: currentUser.recipes.filter((r) => r.mealType === 'dinner'),
-  };
+  // Группируем по типу приёма пищи
+  const groupedRecipes: Record<string, Recipe[]> = {};
+  allMealTypes.forEach((mt) => {
+    const recipes = currentUser.recipes.filter((r) => r.mealType === mt.id);
+    if (recipes.length > 0) {
+      groupedRecipes[mt.id] = recipes;
+    }
+  });
 
   const toggleCategory = (category: string) => {
     const newCollapsed = new Set(collapsedCategories);
@@ -45,6 +45,11 @@ export function RecipeList() {
     setCollapsedCategories(newCollapsed);
   };
 
+  // Если выбрано блюдо — показываем детали
+  if (selectedRecipe) {
+    return <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -52,8 +57,8 @@ export function RecipeList() {
         <div className="flex items-center gap-3">
           <span className="text-3xl">{currentUser.avatar}</span>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">{currentUser.name}</h2>
-            <p className="text-sm text-gray-500">{currentUser.recipes.length} рецептов</p>
+            <h2 className="text-lg font-bold text-gray-800">Мои блюда</h2>
+            <p className="text-sm text-gray-500">{currentUser.recipes.length} {currentUser.recipes.length === 1 ? 'блюдо' : currentUser.recipes.length < 5 ? 'блюда' : 'блюд'}</p>
           </div>
         </div>
         
@@ -85,8 +90,9 @@ export function RecipeList() {
       {/* Content */}
       {viewMode === 'list' ? (
         <div className="space-y-4">
-          {Object.entries(groupedRecipes).map(([type, recipes]) =>
-            recipes.length > 0 ? (
+          {Object.entries(groupedRecipes).map(([type, recipes]) => {
+            const mealType = allMealTypes.find((m) => m.id === type);
+            return (
               <div key={type}>
                 {/* Collapsible Header */}
                 <button
@@ -94,8 +100,8 @@ export function RecipeList() {
                   className="w-full flex items-center justify-between mb-3 p-2 rounded-xl hover:bg-orange-50/50 transition-colors"
                 >
                   <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                    <span>{mealTypeLabels[type].emoji}</span>
-                    <span>{mealTypeLabels[type].label}</span>
+                    <span>{mealType?.emoji}</span>
+                    <span>{mealType?.name}</span>
                     <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
                   </h3>
                   <div className="p-1 rounded-lg bg-gray-100">
@@ -122,6 +128,7 @@ export function RecipeList() {
                           key={recipe.id}
                           recipe={recipe}
                           onDelete={deleteRecipe}
+                          onView={setSelectedRecipe}
                           index={index}
                         />
                       ))}
@@ -129,17 +136,18 @@ export function RecipeList() {
                   )}
                 </AnimatePresence>
               </div>
-            ) : null
-          )}
+            );
+          })}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {Object.entries(groupedRecipes).map(([type, recipes]) =>
+          {Object.entries(groupedRecipes).flatMap(([type, recipes]) =>
             recipes.map((recipe, index) => (
               <RecipeGridCard
                 key={recipe.id}
                 recipe={recipe}
                 onDelete={deleteRecipe}
+                onView={setSelectedRecipe}
                 index={index}
               />
             ))
@@ -153,12 +161,21 @@ export function RecipeList() {
 function RecipeCard({
   recipe,
   onDelete,
+  onView,
   index,
 }: {
   recipe: Recipe;
   onDelete: (id: string) => void;
+  onView: (recipe: Recipe) => void;
   index: number;
 }) {
+  const images = getRecipeImages(recipe);
+  
+  const formatIngredients = () => {
+    if (!recipe.ingredients || recipe.ingredients.length === 0) return '0 ингр.';
+    return `${recipe.ingredients.length} ингр.`;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -167,7 +184,10 @@ function RecipeCard({
       className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
     >
       <div className="flex">
-        <div className="w-24 h-24 flex-shrink-0 relative">
+        <div
+          className="w-24 h-24 flex-shrink-0 relative cursor-pointer"
+          onClick={() => onView(recipe)}
+        >
           <img
             src={getRecipeImage(recipe)}
             alt={recipe.name}
@@ -176,44 +196,55 @@ function RecipeCard({
               (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
             }}
           />
-          {getRecipeImages(recipe).length > 1 && (
+          {images.length > 1 && (
             <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded-md flex items-center gap-0.5">
               <Image className="w-2.5 h-2.5" />
-              {getRecipeImages(recipe).length}
+              {images.length}
             </div>
           )}
         </div>
         <div className="flex-1 p-3">
           <div className="flex items-start justify-between">
-            <div className="flex-1">
+            <div className="flex-1 cursor-pointer" onClick={() => onView(recipe)}>
               <h4 className="font-semibold text-gray-800 text-sm">{recipe.name}</h4>
               <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{recipe.description}</p>
             </div>
-            <button
-              onClick={() => onDelete(recipe.id)}
-              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onView(recipe)}
+                className="p-1.5 rounded-lg hover:bg-orange-50 text-gray-400 hover:text-orange-500 transition-colors"
+                title="Посмотреть"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onDelete(recipe.id)}
+                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2 mt-2">
             <div className="flex items-center gap-1 text-xs text-gray-400">
               <Clock className="w-3 h-3" />
-              <span>{recipe.ingredients.length} ингр.</span>
+              <span>{formatIngredients()}</span>
             </div>
-            <div className="flex gap-1">
-              {recipe.ingredients.slice(0, 3).map((ing, i) => (
-                <span
-                  key={i}
-                  className="px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] rounded-full"
-                >
-                  {ing}
-                </span>
-              ))}
-              {recipe.ingredients.length > 3 && (
-                <span className="text-[10px] text-gray-400">+{recipe.ingredients.length - 3}</span>
-              )}
-            </div>
+            {recipe.ingredients && recipe.ingredients.length > 0 && (
+              <div className="flex gap-1">
+                {recipe.ingredients.slice(0, 2).map((ing, i) => (
+                  <span
+                    key={i}
+                    className="px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] rounded-full"
+                  >
+                    {ing.name}
+                  </span>
+                ))}
+                {recipe.ingredients.length > 2 && (
+                  <span className="text-[10px] text-gray-400">+{recipe.ingredients.length - 2}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -224,10 +255,12 @@ function RecipeCard({
 function RecipeGridCard({
   recipe,
   onDelete,
+  onView,
   index,
 }: {
   recipe: Recipe;
   onDelete: (id: string) => void;
+  onView: (recipe: Recipe) => void;
   index: number;
 }) {
   const images = getRecipeImages(recipe);
@@ -249,13 +282,10 @@ function RecipeGridCard({
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && images.length > 1) {
+    if (distance > minSwipeDistance && images.length > 1) {
       setCurrentImageIndex((prev) => (prev + 1) % images.length);
     }
-    if (isRightSwipe && images.length > 1) {
+    if (distance < -minSwipeDistance && images.length > 1) {
       setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
     }
   };
@@ -270,11 +300,8 @@ function RecipeGridCard({
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  const mealEmoji: Record<string, string> = {
-    breakfast: '🌅',
-    lunch: '☀️',
-    dinner: '🌙',
-  };
+  const allMealTypes = useAllMealTypes();
+  const mealType = allMealTypes.find((m) => m.id === recipe.mealType);
 
   return (
     <motion.div
@@ -285,10 +312,11 @@ function RecipeGridCard({
     >
       {/* Image with swipe controls */}
       <div
-        className="relative aspect-square overflow-hidden"
+        className="relative aspect-square overflow-hidden cursor-pointer"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onClick={() => onView(recipe)}
       >
         <motion.img
           key={currentImageIndex}
@@ -303,23 +331,23 @@ function RecipeGridCard({
           }}
         />
         
-        {/* Swipe buttons - visible on hover (desktop) and always on mobile for multi-image */}
+        {/* Swipe buttons */}
         {images.length > 1 && (
           <>
             <button
               onClick={handlePrevImage}
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 md:opacity-0 transition-opacity text-lg leading-none"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-lg leading-none"
             >
               ‹
             </button>
             <button
               onClick={handleNextImage}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 md:opacity-0 transition-opacity text-lg leading-none"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-lg leading-none"
             >
               ›
             </button>
             
-            {/* Dots indicator - always visible for multi-image */}
+            {/* Dots indicator */}
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
               {images.map((_, i) => (
                 <div
@@ -335,26 +363,42 @@ function RecipeGridCard({
 
         {/* Meal type badge */}
         <div className="absolute top-2 left-2 px-2 py-0.5 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium">
-          {mealEmoji[recipe.mealType]}
+          {mealType?.emoji}
         </div>
 
-        {/* Delete button */}
-        <button
-          onClick={() => onDelete(recipe.id)}
-          className="absolute top-2 right-2 w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {/* Action buttons */}
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(recipe);
+            }}
+            className="w-7 h-7 bg-white/90 hover:bg-orange-50 text-gray-600 hover:text-orange-500 rounded-full flex items-center justify-center"
+          >
+            <Eye className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(recipe.id);
+            }}
+            className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="p-3">
+      <div className="p-3 cursor-pointer" onClick={() => onView(recipe)}>
         <h4 className="font-semibold text-gray-800 text-sm truncate">{recipe.name}</h4>
         <p className="text-xs text-gray-500 mt-1 line-clamp-2">{recipe.description}</p>
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3 text-gray-400" />
-            <span className="text-xs text-gray-400">{recipe.ingredients.length} ингр.</span>
+            <span className="text-xs text-gray-400">
+              {recipe.ingredients?.length || 0} ингр.
+            </span>
           </div>
           {images.length > 1 && (
             <div className="flex items-center gap-0.5 text-gray-400">

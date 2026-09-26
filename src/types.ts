@@ -1,12 +1,34 @@
+export interface Ingredient {
+  id: string;
+  name: string;
+  amount?: string;
+  unit?: string;
+}
+
+export interface CookingStep {
+  id: string;
+  text: string;
+  imageUrl?: string;
+}
+
 export interface Recipe {
   id: string;
   name: string;
   description: string;
   imageUrls: string[];
-  ingredients: string[];
-  mealType: 'breakfast' | 'lunch' | 'dinner';
+  videoUrl?: string;
+  ingredients: Ingredient[];
+  mealType: string;
+  cookingSteps?: CookingStep[];
   ownerId: string;
   createdAt: number;
+}
+
+export interface MealTypeOption {
+  id: string;
+  name: string;
+  emoji: string;
+  isDefault: boolean;
 }
 
 export interface User {
@@ -25,7 +47,7 @@ export interface SwipeRequest {
   createdAt: number;
   selectedRecipeIds?: string[];
   mode?: 'category' | 'select';
-  category?: 'breakfast' | 'lunch' | 'dinner';
+  category?: string;
 }
 
 export interface Notification {

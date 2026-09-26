@@ -1,30 +1,103 @@
-import { useState } from 'react';
-import { useStore } from '../store';
-import { ArrowLeft, Plus, X, Image, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState, useRef } from 'react';
+import { useStore, useAllMealTypes } from '../store';
+import { Ingredient, CookingStep } from '../types';
+import { ArrowLeft, Plus, X, Image as ImageIcon, Upload, Trash2, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
   onDone: () => void;
 }
 
 export function AddRecipe({ onDone }: Props) {
-  const { addRecipe } = useStore();
+  const { addRecipe, addCustomMealType } = useStore();
+  const allMealTypes = useAllMealTypes();
+  
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrls, setImageUrls] = useState<string[]>(['']);
-  const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner'>('breakfast');
-  const [ingredients, setIngredients] = useState<string[]>([]);
-  const [newIngredient, setNewIngredient] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [mealType, setMealType] = useState(allMealTypes[0]?.id || 'breakfast');
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [cookingSteps, setCookingSteps] = useState<CookingStep[]>([]);
+  const [showMealTypeInput, setShowMealTypeInput] = useState(false);
+  const [newMealTypeName, setNewMealTypeName] = useState('');
+  const [newMealTypeEmoji, setNewMealTypeEmoji] = useState('🍽️');
+
+  // Ingredient form
+  const [ingName, setIngName] = useState('');
+  const [ingAmount, setIngAmount] = useState('');
+  const [ingUnit, setIngUnit] = useState('');
+
+  // Step form
+  const [stepText, setStepText] = useState('');
+  const [stepImageUrl, setStepImageUrl] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const stepFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddIngredient = () => {
-    if (newIngredient.trim()) {
-      setIngredients([...ingredients, newIngredient.trim()]);
-      setNewIngredient('');
-    }
+    if (!ingName.trim()) return;
+    const newIng: Ingredient = {
+      id: `ing_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: ingName.trim(),
+      amount: ingAmount.trim() || undefined,
+      unit: ingUnit.trim() || undefined,
+    };
+    setIngredients([...ingredients, newIng]);
+    setIngName('');
+    setIngAmount('');
+    setIngUnit('');
   };
 
-  const handleRemoveIngredient = (index: number) => {
-    setIngredients(ingredients.filter((_, i) => i !== index));
+  const handleRemoveIngredient = (id: string) => {
+    setIngredients(ingredients.filter((ing) => ing.id !== id));
+  };
+
+  const handleAddStep = () => {
+    if (!stepText.trim()) return;
+    const newStep: CookingStep = {
+      id: `step_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      text: stepText.trim(),
+      imageUrl: stepImageUrl.trim() || undefined,
+    };
+    setCookingSteps([...cookingSteps, newStep]);
+    setStepText('');
+    setStepImageUrl('');
+  };
+
+  const handleRemoveStep = (id: string) => {
+    setCookingSteps(cookingSteps.filter((s) => s.id !== id));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (file.type.startsWith('video/')) {
+          setVideoUrl(result);
+        } else {
+          setImageUrls((prev) => {
+            const filtered = prev.filter((url) => url.trim());
+            return [...filtered, result];
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleStepFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setStepImageUrl(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const addImageField = () => {
@@ -42,6 +115,15 @@ export function AddRecipe({ onDone }: Props) {
     setImageUrls(newUrls);
   };
 
+  const handleAddCustomMealType = () => {
+    if (!newMealTypeName.trim()) return;
+    addCustomMealType(newMealTypeName.trim(), newMealTypeEmoji);
+    setMealType(`mt_${Date.now()}`);
+    setNewMealTypeName('');
+    setNewMealTypeEmoji('🍽️');
+    setShowMealTypeInput(false);
+  };
+
   const handleSubmit = () => {
     if (!name.trim()) return;
     const validUrls = imageUrls.filter((url) => url.trim());
@@ -49,17 +131,23 @@ export function AddRecipe({ onDone }: Props) {
       name: name.trim(),
       description: description.trim(),
       imageUrls: validUrls.length > 0 ? validUrls : ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'],
+      videoUrl: videoUrl.trim() || undefined,
       ingredients,
       mealType,
+      cookingSteps: cookingSteps.length > 0 ? cookingSteps : undefined,
     });
     onDone();
   };
 
-  const mealOptions = [
-    { value: 'breakfast' as const, label: '🌅 Завтрак' },
-    { value: 'lunch' as const, label: '☀️ Обед' },
-    { value: 'dinner' as const, label: '🌙 Ужин' },
-  ];
+  const formatIngredient = (ing: Ingredient) => {
+    if (ing.amount && ing.unit) {
+      return `${ing.name} — ${ing.amount} ${ing.unit}`;
+    }
+    if (ing.amount) {
+      return `${ing.name} — ${ing.amount}`;
+    }
+    return ing.name;
+  };
 
   return (
     <div className="space-y-5">
@@ -67,14 +155,35 @@ export function AddRecipe({ onDone }: Props) {
         <button onClick={onDone} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
-        <h2 className="text-xl font-bold text-gray-800">Новый рецепт</h2>
+        <h2 className="text-xl font-bold text-gray-800">Новое блюдо</h2>
+      </div>
+
+      {/* File Upload Button */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <Upload className="w-4 h-4" /> Загрузить медиа
+        </label>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept="image/*,video/*"
+          multiple
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full py-3 border-2 border-dashed border-orange-200 rounded-xl text-sm text-orange-600 hover:border-orange-400 hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
+        >
+          <Upload className="w-4 h-4" />
+          Выбрать фото или видео из файлов
+        </button>
       </div>
 
       {/* Image URLs */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <Image className="w-4 h-4" /> Фотографии блюда
-          <span className="text-xs text-gray-400 font-normal">(можно несколько)</span>
+          <ImageIcon className="w-4 h-4" /> Или добавьте ссылки на фото
         </label>
         <div className="space-y-2">
           {imageUrls.map((url, index) => (
@@ -88,7 +197,7 @@ export function AddRecipe({ onDone }: Props) {
                 type="url"
                 value={url}
                 onChange={(e) => updateImageUrl(index, e.target.value)}
-                placeholder={`Фото ${index + 1}: https://example.com/photo.jpg`}
+                placeholder={`Фото ${index + 1}: https://...`}
                 className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
               />
               {imageUrls.length > 1 && (
@@ -109,8 +218,8 @@ export function AddRecipe({ onDone }: Props) {
           <Plus className="w-4 h-4" />
           Добавить ещё фото
         </button>
-        
-        {/* Image previews */}
+
+        {/* Previews */}
         {imageUrls.some((url) => url.trim()) && (
           <div className="flex gap-2 overflow-x-auto pb-2">
             {imageUrls
@@ -123,6 +232,14 @@ export function AddRecipe({ onDone }: Props) {
           </div>
         )}
       </div>
+
+      {/* Video URL */}
+      {videoUrl && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Видео</label>
+          <video src={videoUrl} controls className="w-full rounded-xl max-h-48" />
+        </div>
+      )}
 
       {/* Name */}
       <div className="space-y-2">
@@ -151,54 +268,191 @@ export function AddRecipe({ onDone }: Props) {
       {/* Meal Type */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700">Тип приёма пищи</label>
-        <div className="flex gap-2">
-          {mealOptions.map((option) => (
+        <div className="grid grid-cols-3 gap-2">
+          {allMealTypes.map((option) => (
             <button
-              key={option.value}
-              onClick={() => setMealType(option.value)}
-              className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
-                mealType === option.value
+              key={option.id}
+              onClick={() => setMealType(option.id)}
+              className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+                mealType === option.id
                   ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {option.label}
+              {option.emoji} {option.name}
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setShowMealTypeInput(!showMealTypeInput)}
+          className="w-full py-2 text-sm text-orange-600 hover:text-orange-700 flex items-center justify-center gap-1"
+        >
+          <Plus className="w-4 h-4" />
+          Добавить свой тип
+        </button>
+        <AnimatePresence>
+          {showMealTypeInput && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="flex gap-2 p-3 bg-orange-50 rounded-xl">
+                <input
+                  type="text"
+                  value={newMealTypeEmoji}
+                  onChange={(e) => setNewMealTypeEmoji(e.target.value)}
+                  className="w-16 px-3 py-2 rounded-lg border border-orange-200 text-center text-lg"
+                  maxLength={2}
+                />
+                <input
+                  type="text"
+                  value={newMealTypeName}
+                  onChange={(e) => setNewMealTypeName(e.target.value)}
+                  placeholder="Название"
+                  className="flex-1 px-3 py-2 rounded-lg border border-orange-200 text-sm"
+                />
+                <button
+                  onClick={handleAddCustomMealType}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium"
+                >
+                  Добавить
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Ingredients */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700">Ингредиенты</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newIngredient}
-            onChange={(e) => setNewIngredient(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
-            placeholder="Добавить ингредиент"
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
-          />
+        <div className="p-3 bg-gray-50 rounded-xl space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              type="text"
+              value={ingName}
+              onChange={(e) => setIngName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
+              placeholder="Продукт"
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+            <input
+              type="text"
+              value={ingAmount}
+              onChange={(e) => setIngAmount(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
+              placeholder="Кол-во"
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+            <input
+              type="text"
+              value={ingUnit}
+              onChange={(e) => setIngUnit(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
+              placeholder="Ед. (г, шт)"
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+          </div>
           <button
             onClick={handleAddIngredient}
-            className="px-4 py-3 bg-orange-100 text-orange-600 rounded-xl hover:bg-orange-200 transition-colors"
+            className="w-full py-2 bg-orange-100 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors flex items-center justify-center gap-1"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
+            Добавить ингредиент
           </button>
         </div>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {ingredients.map((ing, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-sm"
+        {ingredients.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {ingredients.map((ing) => (
+              <span
+                key={ing.id}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-sm"
+              >
+                {formatIngredient(ing)}
+                <button onClick={() => handleRemoveIngredient(ing.id)} className="hover:text-red-500">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Cooking Steps */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          Способ приготовления
+          <span className="text-xs text-gray-400 font-normal">(необязательно)</span>
+        </label>
+        
+        <div className="space-y-2">
+          {cookingSteps.map((step, index) => (
+            <motion.div
+              key={step.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100"
             >
-              {ing}
-              <button onClick={() => handleRemoveIngredient(index)} className="hover:text-red-500">
-                <X className="w-3.5 h-3.5" />
+              <div className="flex-shrink-0 w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                {index + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-800">{step.text}</p>
+                {step.imageUrl && (
+                  <img src={step.imageUrl} alt={`Step ${index + 1}`} className="mt-2 w-full h-24 object-cover rounded-lg" />
+                )}
+              </div>
+              <button
+                onClick={() => handleRemoveStep(step.id)}
+                className="flex-shrink-0 p-1 text-red-400 hover:text-red-600"
+              >
+                <X className="w-4 h-4" />
               </button>
-            </span>
+            </motion.div>
           ))}
+        </div>
+
+        <div className="p-3 bg-gray-50 rounded-xl space-y-2">
+          <input
+            type="text"
+            value={stepText}
+            onChange={(e) => setStepText(e.target.value)}
+            placeholder={`Шаг ${cookingSteps.length + 1}: Описание действия...`}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={stepImageUrl}
+              onChange={(e) => setStepImageUrl(e.target.value)}
+              placeholder="Ссылка на фото (опционально)"
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+            <input
+              type="file"
+              ref={stepFileInputRef}
+              onChange={handleStepFileUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <button
+              onClick={() => stepFileInputRef.current?.click()}
+              className="px-3 py-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-colors"
+              title="Загрузить фото"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={handleAddStep}
+            disabled={!stepText.trim()}
+            className="w-full py-2 bg-blue-100 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+          >
+            <Plus className="w-4 h-4" />
+            Добавить шаг
+          </button>
         </div>
       </div>
 
@@ -208,7 +462,7 @@ export function AddRecipe({ onDone }: Props) {
         disabled={!name.trim()}
         className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
       >
-        Сохранить рецепт
+        Сохранить блюдо
       </button>
     </div>
   );

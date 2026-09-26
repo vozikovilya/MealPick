@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
-import { useStore } from '../store';
+import { useStore, useAllMealTypes } from '../store';
 import { Recipe } from '../types';
 import { X, Heart, Check, ArrowLeft, Send } from 'lucide-react';
 import { getRecipeImage, FALLBACK_IMAGE } from '../utils';
@@ -27,14 +27,12 @@ export function SwipeSelector({ requestId, onDone }: Props) {
     })
     .filter(Boolean) as Recipe[];
 
-  const categoryLabels: Record<string, string> = {
-    breakfast: '🌅 Завтрак',
-    lunch: '☀️ Обед',
-    dinner: '🌙 Ужин',
-  };
+  const allMealTypes = useAllMealTypes();
+  const categoryMealType = allMealTypes.find((m) => m.id === request.category);
+  const categoryLabel = categoryMealType ? `${categoryMealType.emoji} ${categoryMealType.name}` : request.category;
 
   const subtitle = request.mode === 'category' && request.category
-    ? `Выберите из категории: ${categoryLabels[request.category]}`
+    ? `Выберите из категории: ${categoryLabel}`
     : `${fromUser?.name} предлагает выбрать`;
 
   return (
@@ -208,11 +206,8 @@ function SwipeCard({
     }
   };
 
-  const mealEmoji: Record<string, string> = {
-    breakfast: '🌅',
-    lunch: '☀️',
-    dinner: '🌙',
-  };
+  const allMealTypes = useAllMealTypes();
+  const mealType = allMealTypes.find((m) => m.id === recipe.mealType);
 
   return (
     <motion.div
@@ -244,7 +239,7 @@ function SwipeCard({
             }}
           />
           <div className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-sm font-medium">
-            {mealEmoji[recipe.mealType]} {recipe.mealType === 'breakfast' ? 'Завтрак' : recipe.mealType === 'lunch' ? 'Обед' : 'Ужин'}
+            {mealType?.emoji} {mealType?.name}
           </div>
 
           {/* Like/Nope overlays */}
@@ -281,7 +276,7 @@ function SwipeCard({
                   key={i}
                   className="px-2.5 py-1 bg-orange-50 text-orange-700 text-xs rounded-full font-medium"
                 >
-                  {ing}
+                  {ing.name}
                 </span>
               ))}
             </div>

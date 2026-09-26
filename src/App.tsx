@@ -94,7 +94,7 @@ function App() {
             }`}
           >
             <UtensilsCrossed className="w-5 h-5" />
-            <span className="text-xs font-medium">Рецепты</span>
+            <span className="text-xs font-medium">Блюда</span>
           </button>
           <button
             onClick={() => setScreen('add')}
