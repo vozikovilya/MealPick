@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, useAllMealTypes } from '../store';
 import { Recipe } from '../types';
-import { Clock, Trash2, ChevronDown, ChevronRight, List, Grid3X3, Image, Eye } from 'lucide-react';
+import { Clock, Trash2, ChevronDown, ChevronRight, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRecipeImage, getRecipeImages, FALLBACK_IMAGE } from '../utils';
 import { RecipeDetail } from './RecipeDetail';
@@ -10,9 +10,10 @@ type ViewMode = 'list' | 'grid';
 
 interface Props {
   onEditRecipe?: (recipe: Recipe) => void;
+  onAddRecipe?: () => void;
 }
 
-export function RecipeList({ onEditRecipe }: Props) {
+export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   const { users, currentUserId, deleteRecipe } = useStore();
   const allMealTypes = useAllMealTypes();
   const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : null;
@@ -25,7 +26,14 @@ export function RecipeList({ onEditRecipe }: Props) {
       <div className="text-center py-16">
         <div className="text-6xl mb-4">🍽️</div>
         <h2 className="text-xl font-semibold text-gray-700 mb-2">Пока нет блюд</h2>
-        <p className="text-gray-500">Добавьте свои любимые блюда, чтобы потом спросить партнёра!</p>
+        <p className="text-gray-500 mb-6">Добавьте свои любимые блюда, чтобы потом спросить партнёра!</p>
+        <button
+          onClick={onAddRecipe}
+          className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all inline-flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Создать новое блюдо
+        </button>
       </div>
     );
   }

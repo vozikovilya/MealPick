@@ -17,10 +17,14 @@ interface AppState {
   login: (emailOrUsername: string, password: string) => { success: boolean; message: string };
   logout: () => void;
   updateProfile: (data: { name?: string; avatar?: string; description?: string }) => void;
+  updateCredentials: (data: { email?: string; username?: string; password?: string }) => { success: boolean; message: string };
+  deleteAccount: () => { success: boolean; message: string };
   
   // Family
   createFamilyProfile: (name: string, avatar: string, description?: string) => void;
   updateFamilyProfile: (data: { name?: string; avatar?: string; description?: string }) => void;
+  deleteFamilyProfile: () => { success: boolean; message: string };
+  removeFamilyMember: (memberId: string) => { success: boolean; message: string };
   
   setCurrentUser: (userId: string) => void;
   addRecipe: (recipe: Omit<Recipe, 'id' | 'ownerId' | 'createdAt'>) => void;
@@ -318,6 +322,57 @@ export const useStore = create<AppState>()(
         });
       },
 
+      updateCredentials: (data) => {
+        const { currentUserId, users } = get();
+        if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
+        
+        const currentUser = users.find(u => u.id === currentUserId);
+        if (!currentUser) return { success: false, message: 'Пользователь не найден' };
+        
+        // Проверяем уникальность email
+        if (data.email && data.email !== currentUser.email) {
+          if (users.some(u => u.email === data.email)) {
+            return { success: false, message: 'Email уже используется' };
+          }
+        }
+        
+        // Проверяем уникальность username
+        if (data.username && data.username !== currentUser.username) {
+          if (users.some(u => u.username === data.username)) {
+            return { success: false, message: 'Логин уже используется' };
+          }
+        }
+        
+        set({
+          users: users.map(u =>
+            u.id === currentUserId ? { ...u, ...data } : u
+          ),
+        });
+        return { success: true, message: 'Данные обновлены' };
+      },
+
+      deleteAccount: () => {
+        const { currentUserId, users, familyProfile } = get();
+        if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
+        
+        // Проверяем, является ли пользователь главным в семье
+        if (familyProfile && familyProfile.ownerId === currentUserId) {
+          return { success: false, message: 'Нельзя удалить аккаунт, пока вы являетесь создателем профиля семьи. Сначала удалите профиль семьи или передайте права другому участнику.' };
+        }
+        
+        // Удаляем пользователя
+        set({
+          users: users.filter(u => u.id !== currentUserId),
+          currentUserId: null,
+          // Если пользователь был в семье, удаляем его из списка участников
+          familyProfile: familyProfile ? {
+            ...familyProfile,
+            memberIds: familyProfile.memberIds.filter(id => id !== currentUserId)
+          } : null,
+        });
+        return { success: true, message: 'Аккаунт удалён' };
+      },
+
       // Family
       createFamilyProfile: (name, avatar, description) => {
         const { currentUserId, familyProfile } = get();
@@ -346,6 +401,56 @@ export const useStore = create<AppState>()(
         const { familyProfile } = get();
         if (!familyProfile) return;
         set({ familyProfile: { ...familyProfile, ...data } });
+      },
+
+      deleteFamilyProfile: () => {
+        const { currentUserId, familyProfile, users } = get();
+        if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
+        if (!familyProfile) return { success: false, message: 'Профиль семьи не найден' };
+        
+        // Проверяем, является ли пользователь создателем
+        if (familyProfile.ownerId !== currentUserId) {
+          return { success: false, message: 'Только создатель может удалить профиль семьи' };
+        }
+        
+        // Удаляем профиль семьи и очищаем familyId у всех участников
+        set({
+          familyProfile: null,
+          users: users.map(u => ({
+            ...u,
+            familyId: undefined,
+            isFamilyOwner: false,
+          })),
+        });
+        return { success: true, message: 'Профиль семьи удалён' };
+      },
+
+      removeFamilyMember: (memberId) => {
+        const { currentUserId, familyProfile, users } = get();
+        if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
+        if (!familyProfile) return { success: false, message: 'Профиль семьи не найден' };
+        
+        // Проверяем, является ли пользователь создателем
+        if (familyProfile.ownerId !== currentUserId) {
+          return { success: false, message: 'Только создатель может удалять участников' };
+        }
+        
+        // Нельзя удалить самого создателя
+        if (memberId === familyProfile.ownerId) {
+          return { success: false, message: 'Нельзя удалить создателя профиля семьи' };
+        }
+        
+        // Удаляем участника из семьи
+        set({
+          familyProfile: {
+            ...familyProfile,
+            memberIds: familyProfile.memberIds.filter(id => id !== memberId),
+          },
+          users: users.map(u =>
+            u.id === memberId ? { ...u, familyId: undefined, isFamilyOwner: false } : u
+          ),
+        });
+        return { success: true, message: 'Участник удалён из семьи' };
       },
 
       setCurrentUser: (userId) => set({ currentUserId: userId }),

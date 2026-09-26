@@ -84,6 +84,7 @@ function App() {
               setEditingRecipe(recipe);
               setScreen('edit');
             }}
+            onAddRecipe={() => setScreen('add')}
           />
         )}
         {screen === 'add' && <AddRecipe onDone={() => setScreen('recipes')} />}
@@ -139,7 +140,7 @@ function App() {
             active={screen === 'add'}
             onClick={() => setScreen('add')}
             icon={<Plus className="w-5 h-5" />}
-            label="Добавить"
+            label="Новое блюдо"
           />
           <NavButton
             active={screen === 'send'}

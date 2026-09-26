@@ -76,12 +76,54 @@ export function AuthScreen({ onAuth }: Props) {
         animate={{ opacity: 1, scale: 1 }}
         className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 via-white to-amber-50"
       >
-        <div className="text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">🎉</span>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Регистрация успешна!</h2>
-          <p className="text-gray-600">Добро пожаловать в MealPick</p>
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className="w-24 h-24 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
+          >
+            <span className="text-5xl">🎉</span>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-3xl font-bold text-gray-800 mb-3"
+          >
+            Добро пожаловать!
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-gray-600 mb-6"
+          >
+            Рады видеть вас в MealPick! Теперь вы можете создавать свои любимые блюда и делиться ими с близкими.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-orange-50 rounded-2xl p-4 mb-6"
+          >
+            <p className="text-sm text-orange-800 font-medium mb-2">✨ Что дальше?</p>
+            <ul className="text-xs text-orange-700 text-left space-y-1">
+              <li>• Добавьте свои любимые блюда</li>
+              <li>• Создайте профиль семьи</li>
+              <li>• Пригласите близких по ссылке</li>
+              <li>• Выбирайте блюда вместе!</li>
+            </ul>
+          </motion.div>
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            onClick={onAuth}
+            className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all"
+          >
+            Начать готовить! 🍳
+          </motion.button>
         </div>
       </motion.div>
     );
