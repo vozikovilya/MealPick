@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { ArrowLeft, Send, Check, Coffee, Sun, Moon, List } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getRecipeImage } from '../utils';
 
 interface Props {
   onDone: () => void;
@@ -242,7 +243,7 @@ export function SendRequest({ onDone }: Props) {
                       }`}
                     >
                       <img
-                        src={recipe.imageUrls[0]}
+                        src={getRecipeImage(recipe)}
                         alt={recipe.name}
                         className="w-12 h-12 rounded-lg object-cover"
                         onError={(e) => {

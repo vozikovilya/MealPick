@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { Recipe } from '../types';
 import { Clock, Trash2, ChevronDown, ChevronRight, List, Grid3X3, Image } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getRecipeImage, getRecipeImages, FALLBACK_IMAGE } from '../utils';
 
 type ViewMode = 'list' | 'grid';
 
@@ -168,17 +169,17 @@ function RecipeCard({
       <div className="flex">
         <div className="w-24 h-24 flex-shrink-0 relative">
           <img
-            src={recipe.imageUrls[0]}
+            src={getRecipeImage(recipe)}
             alt={recipe.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f97316" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="white" font-size="30">🍽️</text></svg>';
+              (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
             }}
           />
-          {recipe.imageUrls.length > 1 && (
+          {getRecipeImages(recipe).length > 1 && (
             <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded-md flex items-center gap-0.5">
               <Image className="w-2.5 h-2.5" />
-              {recipe.imageUrls.length}
+              {getRecipeImages(recipe).length}
             </div>
           )}
         </div>
@@ -229,6 +230,7 @@ function RecipeGridCard({
   onDelete: (id: string) => void;
   index: number;
 }) {
+  const images = getRecipeImages(recipe);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -250,22 +252,22 @@ function RecipeGridCard({
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
 
-    if (isLeftSwipe && recipe.imageUrls.length > 1) {
-      setCurrentImageIndex((prev) => (prev + 1) % recipe.imageUrls.length);
+    if (isLeftSwipe && images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
     }
-    if (isRightSwipe && recipe.imageUrls.length > 1) {
-      setCurrentImageIndex((prev) => (prev - 1 + recipe.imageUrls.length) % recipe.imageUrls.length);
+    if (isRightSwipe && images.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
     }
   };
 
   const handleNextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % recipe.imageUrls.length);
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + recipe.imageUrls.length) % recipe.imageUrls.length);
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const mealEmoji: Record<string, string> = {
@@ -293,16 +295,16 @@ function RecipeGridCard({
           initial={{ opacity: 0.8 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
-          src={recipe.imageUrls[currentImageIndex]}
+          src={images[currentImageIndex] || getRecipeImage(recipe)}
           alt={recipe.name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f97316" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="white" font-size="30">🍽️</text></svg>';
+            (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
           }}
         />
         
         {/* Swipe buttons - visible on hover (desktop) and always on mobile for multi-image */}
-        {recipe.imageUrls.length > 1 && (
+        {images.length > 1 && (
           <>
             <button
               onClick={handlePrevImage}
@@ -319,7 +321,7 @@ function RecipeGridCard({
             
             {/* Dots indicator - always visible for multi-image */}
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-              {recipe.imageUrls.map((_, i) => (
+              {images.map((_, i) => (
                 <div
                   key={i}
                   className={`w-1.5 h-1.5 rounded-full transition-all ${
@@ -354,10 +356,10 @@ function RecipeGridCard({
             <Clock className="w-3 h-3 text-gray-400" />
             <span className="text-xs text-gray-400">{recipe.ingredients.length} ингр.</span>
           </div>
-          {recipe.imageUrls.length > 1 && (
+          {images.length > 1 && (
             <div className="flex items-center gap-0.5 text-gray-400">
               <Image className="w-3 h-3" />
-              <span className="text-[10px]">{recipe.imageUrls.length}</span>
+              <span className="text-[10px]">{images.length}</span>
             </div>
           )}
         </div>

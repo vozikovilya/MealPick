@@ -156,6 +156,9 @@ export const useStore = create<AppState>()(
           id: `r_${Date.now()}`,
           ownerId: currentUserId,
           createdAt: Date.now(),
+          imageUrls: recipeData.imageUrls && recipeData.imageUrls.length > 0
+            ? recipeData.imageUrls
+            : ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'],
         };
         set({
           users: users.map((u) =>
@@ -257,6 +260,34 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'meal-picker-storage',
+      version: 2,
+      migrate: (persistedState: any, version: number) => {
+        // Миграция с версии 0/1 (imageUrl) на версию 2 (imageUrls)
+        if (version < 2 && persistedState?.users) {
+          persistedState.users = persistedState.users.map((user: any) => ({
+            ...user,
+            recipes: user.recipes?.map((recipe: any) => {
+              // Если есть старое поле imageUrl и нет imageUrls
+              if (recipe.imageUrl && !recipe.imageUrls) {
+                return {
+                  ...recipe,
+                  imageUrls: [recipe.imageUrl],
+                  imageUrl: undefined,
+                };
+              }
+              // Если imageUrls undefined или пустой
+              if (!recipe.imageUrls || recipe.imageUrls.length === 0) {
+                return {
+                  ...recipe,
+                  imageUrls: ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'],
+                };
+              }
+              return recipe;
+            }),
+          }));
+        }
+        return persistedState as AppState;
+      },
     }
   )
 );

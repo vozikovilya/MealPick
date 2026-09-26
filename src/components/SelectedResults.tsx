@@ -1,6 +1,7 @@
 import { useStore } from '../store';
 import { ArrowLeft, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getRecipeImage, FALLBACK_IMAGE } from '../utils';
 
 interface Props {
   requestId: string;
@@ -18,14 +19,14 @@ export function SelectedResults({ requestId, onBack }: Props) {
   
   const selectedRecipes = (request.selectedRecipeIds || [])
     .map((id) => allRecipes.find((r) => r.id === id))
-    .filter(Boolean);
+    .filter((r): r is NonNullable<typeof r> => r != null);
 
   const skippedIds = request.recipeIds.filter(
     (id) => !request.selectedRecipeIds?.includes(id)
   );
   const skippedRecipes = skippedIds
     .map((id) => allRecipes.find((r) => r.id === id))
-    .filter(Boolean);
+    .filter((r): r is NonNullable<typeof r> => r != null);
 
   return (
     <motion.div
@@ -67,7 +68,7 @@ export function SelectedResults({ requestId, onBack }: Props) {
                   className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100"
                 >
                 <img
-                  src={recipe.imageUrls[0]}
+                  src={getRecipeImage(recipe)}
                   alt={recipe.name}
                   className="w-14 h-14 rounded-xl object-cover"
                   onError={(e) => {
@@ -113,7 +114,7 @@ export function SelectedResults({ requestId, onBack }: Props) {
                   className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 opacity-50"
                 >
                   <img
-                    src={recipe.imageUrls[0]}
+                    src={getRecipeImage(recipe)}
                     alt={recipe.name}
                     className="w-10 h-10 rounded-lg object-cover grayscale"
                     onError={(e) => {

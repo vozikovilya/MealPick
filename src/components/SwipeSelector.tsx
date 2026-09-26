@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-mo
 import { useStore } from '../store';
 import { Recipe } from '../types';
 import { X, Heart, Check, ArrowLeft, Send } from 'lucide-react';
+import { getRecipeImage, FALLBACK_IMAGE } from '../utils';
 
 interface Props {
   requestId: string;
@@ -235,11 +236,11 @@ function SwipeCard({
         {/* Image */}
         <div className="relative h-56">
           <img
-            src={recipe.imageUrls[0]}
+            src={getRecipeImage(recipe)}
             alt={recipe.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><rect fill="%23f97316" width="400" height="200"/><text x="200" y="110" text-anchor="middle" fill="white" font-size="40">🍽️</text></svg>';
+              (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
             }}
           />
           <div className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-sm font-medium">
@@ -338,7 +339,7 @@ function SummaryScreen({
                 className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100"
               >
                 <img
-                  src={recipe.imageUrls[0]}
+                  src={getRecipeImage(recipe)}
                   alt={recipe.name}
                   className="w-10 h-10 rounded-lg object-cover"
                   onError={(e) => {
@@ -365,7 +366,7 @@ function SummaryScreen({
                 className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 opacity-60"
               >
                 <img
-                  src={recipe.imageUrls[0]}
+                  src={getRecipeImage(recipe)}
                   alt={recipe.name}
                   className="w-10 h-10 rounded-lg object-cover grayscale"
                   onError={(e) => {
