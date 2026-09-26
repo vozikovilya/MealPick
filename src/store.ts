@@ -13,6 +13,7 @@ interface AppState {
 
   setCurrentUser: (userId: string) => void;
   addRecipe: (recipe: Omit<Recipe, 'id' | 'ownerId' | 'createdAt'>) => void;
+  updateRecipe: (recipeId: string, recipe: Omit<Recipe, 'id' | 'ownerId' | 'createdAt'>) => void;
   deleteRecipe: (recipeId: string) => void;
   sendSwipeRequest: (
     toUserId: string,
@@ -389,6 +390,26 @@ export const useStore = create<AppState>()(
           users: users.map((u) =>
             u.id === currentUserId ? { ...u, recipes: [...u.recipes, newRecipe] } : u
           ),
+        });
+      },
+
+      updateRecipe: (recipeId, recipeData) => {
+        const { users } = get();
+        set({
+          users: users.map((u) => ({
+            ...u,
+            recipes: u.recipes.map((r) =>
+              r.id === recipeId
+                ? {
+                    ...r,
+                    ...recipeData,
+                    imageUrls: recipeData.imageUrls && recipeData.imageUrls.length > 0
+                      ? recipeData.imageUrls
+                      : r.imageUrls,
+                  }
+                : r
+            ),
+          })),
         });
       },
 

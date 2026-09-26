@@ -8,7 +8,11 @@ import { RecipeDetail } from './RecipeDetail';
 
 type ViewMode = 'list' | 'grid';
 
-export function RecipeList() {
+interface Props {
+  onEditRecipe?: (recipe: Recipe) => void;
+}
+
+export function RecipeList({ onEditRecipe }: Props) {
   const { users, currentUserId, deleteRecipe } = useStore();
   const allMealTypes = useAllMealTypes();
   const currentUser = users.find((u) => u.id === currentUserId);
@@ -59,7 +63,13 @@ export function RecipeList() {
 
   // Если выбрано блюдо — показываем детали
   if (selectedRecipe) {
-    return <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
+    return (
+      <RecipeDetail
+        recipe={selectedRecipe}
+        onBack={() => setSelectedRecipe(null)}
+        onEdit={onEditRecipe ? () => onEditRecipe(selectedRecipe) : undefined}
+      />
+    );
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from './store';
+import { Recipe } from './types';
 import { RecipeList } from './components/RecipeList';
 import { AddRecipe } from './components/AddRecipe';
 import { SendRequest } from './components/SendRequest';
@@ -10,11 +11,12 @@ import { SelectedResults } from './components/SelectedResults';
 import { PendingNotificationModal } from './components/PendingNotificationModal';
 import { ChefHat, Bell, Send, UtensilsCrossed, Plus } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'send' | 'swipe' | 'notifications' | 'results';
+type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('recipes');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const { notifications, currentUserId, pendingNotification, setPendingNotification, users } = useStore();
 
   const unreadCount = notifications.filter((n) => !n.read && n.type === 'swipe_request').length;
@@ -59,8 +61,24 @@ function App() {
 
       {/* Content */}
       <main className="max-w-lg mx-auto px-4 py-6 pb-24">
-        {screen === 'recipes' && <RecipeList />}
+        {screen === 'recipes' && (
+          <RecipeList
+            onEditRecipe={(recipe) => {
+              setEditingRecipe(recipe);
+              setScreen('edit');
+            }}
+          />
+        )}
         {screen === 'add' && <AddRecipe onDone={() => setScreen('recipes')} />}
+        {screen === 'edit' && editingRecipe && (
+          <AddRecipe
+            onDone={() => {
+              setEditingRecipe(null);
+              setScreen('recipes');
+            }}
+            editRecipe={editingRecipe}
+          />
+        )}
         {screen === 'send' && <SendRequest onDone={() => setScreen('recipes')} />}
         {screen === 'swipe' && activeRequestId && (
           <SwipeSelector
