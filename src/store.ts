@@ -532,48 +532,108 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'meal-picker-storage',
-      version: 4,
+      version: 5,
       migrate: (persistedState: any, version: number) => {
+        // Миграция с версии 3 или ниже на версию 5
         if (version < 4) {
           if (persistedState?.users) {
-            persistedState.users = persistedState.users.map((user: any) => ({
-              ...user,
-              recipes: user.recipes?.map((recipe: any) => {
-                let imageUrls = recipe.imageUrls;
-                if (recipe.imageUrl && !imageUrls) imageUrls = [recipe.imageUrl];
-                if (!imageUrls || imageUrls.length === 0) {
-                  imageUrls = ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'];
-                }
-                let ingredients = recipe.ingredients;
-                if (ingredients && ingredients.length > 0 && typeof ingredients[0] === 'string') {
-                  ingredients = ingredients.map((name: string) => ({
-                    id: `ing_${Math.random().toString(36).slice(2, 9)}`,
-                    name,
-                  }));
-                }
-                if (!ingredients) ingredients = [];
-                // Миграция cookingSteps: добавляем title если его нет
-                let cookingSteps = recipe.cookingSteps;
-                if (cookingSteps) {
-                  cookingSteps = cookingSteps.map((s: any, i: number) => ({
-                    ...s,
-                    title: s.title || `Шаг ${i + 1}`,
-                  }));
-                }
-                return {
-                  ...recipe,
-                  imageUrls,
-                  imageUrl: undefined,
-                  ingredients,
-                  cookingSteps,
-                  pairedRecipeIds: recipe.pairedRecipeIds || [],
-                };
-              }),
-            }));
+            persistedState.users = persistedState.users.map((user: any) => {
+              const existingRecipes = user.recipes || [];
+              const existingIds = new Set(existingRecipes.map((r: any) => r.id));
+              
+              // Находим дефолтного пользователя с таким же id
+              const defaultUser = defaultUsers.find((u) => u.id === user.id);
+              
+              // Добавляем блюда из подборок, если их нет
+              const collectionRecipes = defaultUser?.recipes.filter(
+                (r) => ['sides', 'desserts', 'drinks', 'sauces'].includes(r.mealType)
+              ) || [];
+              
+              const newRecipes = collectionRecipes.filter(
+                (r) => !existingIds.has(r.id)
+              );
+              
+              return {
+                ...user,
+                recipes: [
+                  ...existingRecipes.map((recipe: any) => {
+                    let imageUrls = recipe.imageUrls;
+                    if (recipe.imageUrl && !imageUrls) imageUrls = [recipe.imageUrl];
+                    if (!imageUrls || imageUrls.length === 0) {
+                      imageUrls = ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'];
+                    }
+                    let ingredients = recipe.ingredients;
+                    if (ingredients && ingredients.length > 0 && typeof ingredients[0] === 'string') {
+                      ingredients = ingredients.map((name: string) => ({
+                        id: `ing_${Math.random().toString(36).slice(2, 9)}`,
+                        name,
+                      }));
+                    }
+                    if (!ingredients) ingredients = [];
+                    let cookingSteps = recipe.cookingSteps;
+                    if (cookingSteps) {
+                      cookingSteps = cookingSteps.map((s: any, i: number) => ({
+                        ...s,
+                        title: s.title || `Шаг ${i + 1}`,
+                      }));
+                    }
+                    return {
+                      ...recipe,
+                      imageUrls,
+                      imageUrl: undefined,
+                      ingredients,
+                      cookingSteps,
+                      pairedRecipeIds: recipe.pairedRecipeIds || [],
+                    };
+                  }),
+                  ...newRecipes,
+                ],
+              };
+            });
           }
           if (!persistedState.customMealTypes) persistedState.customMealTypes = [];
           if (!persistedState.deliveryOptions) persistedState.deliveryOptions = defaultDeliveryOptions;
         }
+        
+        // Миграция с версии 4 на версию 5
+        if (version === 4) {
+          if (persistedState?.users) {
+            persistedState.users = persistedState.users.map((user: any) => {
+              const existingRecipes = user.recipes || [];
+              const existingIds = new Set(existingRecipes.map((r: any) => r.id));
+              
+              // Находим дефолтного пользователя с таким же id
+              const defaultUser = defaultUsers.find((u) => u.id === user.id);
+              
+              // Добавляем блюда из подборок, если их нет
+              const collectionRecipes = defaultUser?.recipes.filter(
+                (r) => ['sides', 'desserts', 'drinks', 'sauces'].includes(r.mealType)
+              ) || [];
+              
+              const newRecipes = collectionRecipes.filter(
+                (r) => !existingIds.has(r.id)
+              );
+              
+              return {
+                ...user,
+                recipes: [
+                  ...existingRecipes.map((recipe: any) => ({
+                    ...recipe,
+                    pairedRecipeIds: recipe.pairedRecipeIds || [],
+                    cookingSteps: recipe.cookingSteps?.map((s: any, i: number) => ({
+                      ...s,
+                      title: s.title || `Шаг ${i + 1}`,
+                    })) || [],
+                  })),
+                  ...newRecipes,
+                ],
+              };
+            });
+          }
+          if (!persistedState.customMealTypes) persistedState.customMealTypes = [];
+          if (!persistedState.deliveryOptions) persistedState.deliveryOptions = defaultDeliveryOptions;
+        }
+        
         return persistedState as AppState;
       },
     }
