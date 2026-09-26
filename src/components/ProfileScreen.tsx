@@ -306,8 +306,6 @@ function PersonalProfile({
 
       {/* Delete Account Section */}
       <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-lg font-semibold text-red-600 mb-2">Удаление аккаунта</h3>
-        
         {isFamilyOwner && (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl mb-3">
             <p className="text-sm text-yellow-800">

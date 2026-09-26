@@ -1,7 +1,8 @@
-import { useStore } from '../store';
-import { Bell, ArrowRight, CheckCheck, Clock, Inbox, Check } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { useStore } from '../store';
+import { Bell, ArrowRight, CheckCheck, Inbox, Check, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { getRecipeImage, FALLBACK_IMAGE } from '../utils';
 
 interface Props {
   onOpenSwipe: (requestId: string) => void;
@@ -9,9 +10,9 @@ interface Props {
 }
 
 export function Notifications({ onOpenSwipe, onViewResults }: Props) {
-  const { notifications, users, swipeRequests, markNotificationRead, markAllNotificationsRead, currentUserId } = useStore();
-  if (!currentUserId) return null;
+  const { notifications, users, swipeRequests, markNotificationRead, markNotificationsRead, markAllNotificationsRead, deleteNotifications, currentUserId } = useStore();
   const [viewingRequestId, setViewingRequestId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const sortedNotifications = [...notifications].sort((a, b) => b.createdAt - a.createdAt);
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -23,6 +24,35 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
   const handleCloseDetails = () => {
     setViewingRequestId(null);
   };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === sortedNotifications.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(sortedNotifications.map((n) => n.id));
+    }
+  };
+
+  const handleMarkSelectedRead = () => {
+    if (selectedIds.length === 0) return;
+    markNotificationsRead(selectedIds);
+    setSelectedIds([]);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.length === 0) return;
+    deleteNotifications(selectedIds);
+    setSelectedIds([]);
+  };
+
+  const allSelected = selectedIds.length === sortedNotifications.length && sortedNotifications.length > 0;
+  const someSelected = selectedIds.length > 0;
 
   // Если открыт просмотр деталей запроса
   if (viewingRequestId) {
@@ -108,7 +138,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                   className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100"
                 >
                   <img
-                    src={recipe.imageUrls?.[0] || ''}
+                    src={getRecipeImage(recipe)}
                     alt={recipe.name}
                     className="w-14 h-14 rounded-lg object-cover"
                     onError={(e) => {
@@ -138,7 +168,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                   className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100"
                 >
                   <img
-                    src={recipe.imageUrls?.[0] || ''}
+                    src={getRecipeImage(recipe)}
                     alt={recipe.name}
                     className="w-14 h-14 rounded-lg object-cover"
                     onError={(e) => {
@@ -219,6 +249,38 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
         )}
       </div>
 
+      {/* Bulk Actions */}
+      <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center gap-3">
+        <label className="flex items-center gap-2 cursor-pointer flex-1">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={toggleSelectAll}
+            className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-200"
+          />
+          <span className="text-sm font-medium text-gray-700">Выделить все</span>
+        </label>
+        
+        {someSelected && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleMarkSelectedRead}
+              className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              Прочитать ({selectedIds.length})
+            </button>
+            <button
+              onClick={handleDeleteSelected}
+              className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Удалить ({selectedIds.length})
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-3">
         {sortedNotifications.map((notif, index) => {
           const fromUser = users.find((u) => u.id === notif.fromUserId);
@@ -227,6 +289,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
             : null;
           const isForMe = notif.type === 'swipe_request' && request?.toUserId === currentUserId;
           const isMyResponse = notif.type === 'swipe_response' && request?.fromUserId === currentUserId;
+          const isSelected = selectedIds.includes(notif.id);
 
           return (
             <motion.div
@@ -234,19 +297,21 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+              className={`p-4 rounded-2xl border-2 transition-all ${
                 !notif.read
                   ? 'border-orange-400 bg-orange-50/30 shadow-md shadow-orange-100'
                   : 'border-gray-200 bg-white'
-              }`}
-              onClick={() => {
-                markNotificationRead(notif.id);
-                if (request?.id) {
-                  handleViewRequest(request.id);
-                }
-              }}
+              } ${isSelected ? 'ring-2 ring-orange-300' : ''}`}
             >
               <div className="flex items-start gap-3">
+                {/* Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleSelection(notif.id)}
+                  className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-200 mt-1 flex-shrink-0"
+                />
+
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0 ${
                   !notif.read ? 'bg-orange-100' : 'bg-gray-100'
                 }`}>
@@ -279,7 +344,9 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                       onClick={(e) => {
                         e.stopPropagation();
                         markNotificationRead(notif.id);
-                        onOpenSwipe(notif.requestId!);
+                        if (request?.id) {
+                          handleViewRequest(request.id);
+                        }
                       }}
                       className="mt-3 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-1.5"
                     >

@@ -42,7 +42,9 @@ interface AppState {
   ) => void;
   respondToSwipeRequest: (requestId: string, selectedRecipeIds: string[]) => void;
   markNotificationRead: (notificationId: string) => void;
+  markNotificationsRead: (notificationIds: string[]) => void;
   markAllNotificationsRead: () => void;
+  deleteNotifications: (notificationIds: string[]) => void;
   clearNotifications: () => void;
   addCustomMealType: (name: string, emoji: string, isCollection?: boolean) => void;
   deleteCustomMealType: (id: string) => void;
@@ -584,10 +586,26 @@ export const useStore = create<AppState>()(
         });
       },
 
+      markNotificationsRead: (notificationIds) => {
+        const { notifications } = get();
+        set({
+          notifications: notifications.map((n) =>
+            notificationIds.includes(n.id) ? { ...n, read: true } : n
+          ),
+        });
+      },
+
       markAllNotificationsRead: () => {
         const { notifications } = get();
         set({
           notifications: notifications.map((n) => ({ ...n, read: true })),
+        });
+      },
+
+      deleteNotifications: (notificationIds) => {
+        const { notifications } = get();
+        set({
+          notifications: notifications.filter((n) => !notificationIds.includes(n.id)),
         });
       },
 
