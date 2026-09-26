@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { useStore, useAllMealTypes } from '../store';
 import { Recipe } from '../types';
-import { X, Heart, Check, ArrowLeft, Send } from 'lucide-react';
+import { X, Heart, Check, ArrowLeft, Send, Info } from 'lucide-react';
 import { getRecipeImage, FALLBACK_IMAGE } from '../utils';
 
 interface Props {
@@ -175,6 +175,7 @@ function SwipeContent({
   const [selected, setSelected] = useState<string[]>([]);
   const [skipped, setSkipped] = useState<string[]>([]);
   const [showSummary, setShowSummary] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const handleSwipe = useCallback(
     (direction: 'left' | 'right') => {
@@ -273,20 +274,37 @@ function SwipeContent({
       </div>
 
       {/* Action buttons */}
-      <div className="flex justify-center gap-6">
+      <div className="flex justify-center gap-4">
         <button
           onClick={() => handleSwipe('left')}
-          className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-red-200 hover:border-red-400 hover:shadow-xl transition-all active:scale-95"
+          className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-red-200 hover:border-red-400 hover:shadow-xl transition-all active:scale-95"
         >
-          <X className="w-8 h-8 text-red-400" />
+          <X className="w-7 h-7 text-red-400" />
+        </button>
+        <button
+          onClick={() => setShowDetails(true)}
+          className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-blue-200 hover:border-blue-400 hover:shadow-xl transition-all active:scale-95"
+          title="Подробнее о блюде"
+        >
+          <Info className="w-6 h-6 text-blue-400" />
         </button>
         <button
           onClick={() => handleSwipe('right')}
-          className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-green-200 hover:border-green-400 hover:shadow-xl transition-all active:scale-95"
+          className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-green-200 hover:border-green-400 hover:shadow-xl transition-all active:scale-95"
         >
-          <Heart className="w-8 h-8 text-green-400" />
+          <Heart className="w-7 h-7 text-green-400" />
         </button>
       </div>
+
+      {/* Recipe Details Modal */}
+      <AnimatePresence>
+        {showDetails && currentRecipe && (
+          <RecipeDetailsModal
+            recipe={currentRecipe}
+            onClose={() => setShowDetails(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Selected count */}
       <div className="text-center">
@@ -498,6 +516,122 @@ function SummaryScreen({
         <Send className="w-5 h-5" />
         Отправить выбор
       </button>
+    </motion.div>
+  );
+}
+
+function RecipeDetailsModal({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
+  const allMealTypes = useAllMealTypes();
+  const mealType = allMealTypes.find((m) => m.id === recipe.mealType);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto"
+      >
+        {/* Header with image */}
+        <div className="relative h-48">
+          <img
+            src={getRecipeImage(recipe)}
+            alt={recipe.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+            }}
+          />
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+          >
+            <X className="w-5 h-5 text-gray-700" />
+          </button>
+          {mealType && (
+            <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded-full text-sm font-medium">
+              {mealType.emoji} {mealType.name}
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">{recipe.name}</h2>
+            {recipe.description && (
+              <p className="text-sm text-gray-600 mt-1">{recipe.description}</p>
+            )}
+          </div>
+
+          {/* Ingredients */}
+          {recipe.ingredients && recipe.ingredients.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700">Ингредиенты</h3>
+              <div className="bg-orange-50/50 rounded-xl p-3 border border-orange-100">
+                <div className="divide-y divide-orange-100">
+                  {recipe.ingredients.map((ing) => (
+                    <div key={ing.id} className="flex items-center justify-between py-2">
+                      <span className="text-sm text-gray-800">{ing.name}</span>
+                      <span className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                        {ing.amount && ing.unit ? `${ing.amount} ${ing.unit}` : ing.amount || 'по вкусу'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cooking Steps */}
+          {recipe.cookingSteps && recipe.cookingSteps.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700">Способ приготовления</h3>
+              <div className="space-y-3">
+                {recipe.cookingSteps.map((step, index) => (
+                  <div key={step.id} className="flex gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-7 h-7 bg-gradient-to-br from-orange-400 to-amber-400 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                        {index + 1}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-800">{step.title}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{step.text}</p>
+                      {step.imageUrl && (
+                        <img
+                          src={step.imageUrl}
+                          alt={step.title}
+                          className="mt-2 w-full h-24 object-cover rounded-lg"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+          >
+            Закрыть
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

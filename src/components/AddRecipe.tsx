@@ -408,71 +408,78 @@ export function AddRecipe({ onDone }: Props) {
       </div>
 
       {/* Paired Recipes (подбор блюд из подборок) */}
-      {collectionRecipes.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-            <ChefHat className="w-4 h-4" /> Подать с...
-            <span className="text-xs text-gray-400 font-normal">(из подборок)</span>
-          </label>
-          <p className="text-xs text-gray-500">
-            Можно указать, с каким гарниром, соусом или напитком подавать это блюдо
-          </p>
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-            {collectionRecipes.map((recipe) => {
-              const mt = collectionMealTypes.find((m) => m.id === recipe.mealType);
-              const isSelected = pairedRecipeIds.includes(recipe.id);
-              return (
-                <button
-                  key={recipe.id}
-                  onClick={() => togglePairedRecipe(recipe.id)}
-                  className={`flex items-center gap-2 p-2 rounded-xl border-2 transition-all text-left ${
-                    isSelected
-                      ? 'border-orange-400 bg-orange-50'
-                      : 'border-gray-100 hover:border-gray-200'
-                  }`}
-                >
-                  <img
-                    src={getRecipeImage(recipe)}
-                    alt={recipe.name}
-                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-800 truncate">{recipe.name}</p>
-                    <p className="text-[10px] text-gray-500">{mt?.emoji} {mt?.name}</p>
-                  </div>
-                  {isSelected && (
-                    <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <X className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          {pairedRecipeIds.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {pairedRecipeIds.map((id) => {
-                const recipe = collectionRecipes.find((r) => r.id === id);
-                if (!recipe) return null;
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <ChefHat className="w-4 h-4" /> Подать с...
+          <span className="text-xs text-gray-400 font-normal">(из подборок)</span>
+        </label>
+        <p className="text-xs text-gray-500">
+          Можно указать, с каким гарниром, соусом или напитком подавать это блюдо
+        </p>
+        {collectionRecipes.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {collectionRecipes.map((recipe) => {
+                const mt = collectionMealTypes.find((m) => m.id === recipe.mealType);
+                const isSelected = pairedRecipeIds.includes(recipe.id);
                 return (
-                  <span
-                    key={id}
-                    className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full flex items-center gap-1"
+                  <button
+                    key={recipe.id}
+                    onClick={() => togglePairedRecipe(recipe.id)}
+                    className={`flex items-center gap-2 p-2 rounded-xl border-2 transition-all text-left ${
+                      isSelected
+                        ? 'border-orange-400 bg-orange-50'
+                        : 'border-gray-100 hover:border-gray-200'
+                    }`}
                   >
-                    + {recipe.name}
-                    <button onClick={() => togglePairedRecipe(id)}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
+                    <img
+                      src={getRecipeImage(recipe)}
+                      alt={recipe.name}
+                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-800 truncate">{recipe.name}</p>
+                      <p className="text-[10px] text-gray-500">{mt?.emoji} {mt?.name}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <X className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </button>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
+            {pairedRecipeIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {pairedRecipeIds.map((id) => {
+                  const recipe = collectionRecipes.find((r) => r.id === id);
+                  if (!recipe) return null;
+                  return (
+                    <span
+                      key={id}
+                      className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full flex items-center gap-1"
+                    >
+                      + {recipe.name}
+                      <button onClick={() => togglePairedRecipe(id)}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="p-4 bg-gray-50 rounded-xl text-center">
+            <p className="text-xs text-gray-500">Нет блюд в подборках</p>
+            <p className="text-[10px] text-gray-400 mt-1">Добавьте гарниры, десерты, напитки или соусы в меню</p>
+          </div>
+        )}
+      </div>
 
       {/* Cooking Steps */}
       <div className="space-y-2">

@@ -27,11 +27,23 @@ export function RecipeList() {
   }
 
   // Группируем по типу приёма пищи
+  const mainMealTypes = allMealTypes.filter((mt) => !mt.isCollection);
+  const collectionMealTypes = allMealTypes.filter((mt) => mt.isCollection);
+  
   const groupedRecipes: Record<string, Recipe[]> = {};
-  allMealTypes.forEach((mt) => {
+  const collectionRecipes: Record<string, Recipe[]> = {};
+  
+  mainMealTypes.forEach((mt) => {
     const recipes = currentUser.recipes.filter((r) => r.mealType === mt.id);
     if (recipes.length > 0) {
       groupedRecipes[mt.id] = recipes;
+    }
+  });
+  
+  collectionMealTypes.forEach((mt) => {
+    const recipes = currentUser.recipes.filter((r) => r.mealType === mt.id);
+    if (recipes.length > 0) {
+      collectionRecipes[mt.id] = recipes;
     }
   });
 
@@ -90,6 +102,7 @@ export function RecipeList() {
       {/* Content */}
       {viewMode === 'list' ? (
         <div className="space-y-4">
+          {/* Основные типы */}
           {Object.entries(groupedRecipes).map(([type, recipes]) => {
             const mealType = allMealTypes.find((m) => m.id === type);
             return (
@@ -138,19 +151,103 @@ export function RecipeList() {
               </div>
             );
           })}
+
+          {/* Подборки */}
+          {Object.keys(collectionRecipes).length > 0 && (
+            <>
+              <div className="pt-4 pb-2">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Подборки</h3>
+              </div>
+              {Object.entries(collectionRecipes).map(([type, recipes]) => {
+                const mealType = allMealTypes.find((m) => m.id === type);
+                return (
+                  <div key={type}>
+                    {/* Collapsible Header */}
+                    <button
+                      onClick={() => toggleCategory(type)}
+                      className="w-full flex items-center justify-between mb-3 p-2 rounded-xl hover:bg-orange-50/50 transition-colors"
+                    >
+                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                        <span>{mealType?.emoji}</span>
+                        <span>{mealType?.name}</span>
+                        <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
+                      </h3>
+                      <div className="p-1 rounded-lg bg-gray-100">
+                        {collapsedCategories.has(type) ? (
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Recipes */}
+                    <AnimatePresence>
+                      {!collapsedCategories.has(type) && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="space-y-3 overflow-hidden"
+                        >
+                          {recipes.map((recipe, index) => (
+                            <RecipeCard
+                              key={recipe.id}
+                              recipe={recipe}
+                              onDelete={deleteRecipe}
+                              onView={setSelectedRecipe}
+                              index={index}
+                            />
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {Object.entries(groupedRecipes).flatMap(([type, recipes]) =>
-            recipes.map((recipe, index) => (
-              <RecipeGridCard
-                key={recipe.id}
-                recipe={recipe}
-                onDelete={deleteRecipe}
-                onView={setSelectedRecipe}
-                index={index}
-              />
-            ))
+        <div className="space-y-4">
+          {/* Основные типы */}
+          {Object.keys(groupedRecipes).length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(groupedRecipes).flatMap(([type, recipes]) =>
+                recipes.map((recipe, index) => (
+                  <RecipeGridCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onDelete={deleteRecipe}
+                    onView={setSelectedRecipe}
+                    index={index}
+                  />
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Подборки */}
+          {Object.keys(collectionRecipes).length > 0 && (
+            <>
+              <div className="pt-2 pb-1">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Подборки</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(collectionRecipes).flatMap(([type, recipes]) =>
+                  recipes.map((recipe, index) => (
+                    <RecipeGridCard
+                      key={recipe.id}
+                      recipe={recipe}
+                      onDelete={deleteRecipe}
+                      onView={setSelectedRecipe}
+                      index={index}
+                    />
+                  ))
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

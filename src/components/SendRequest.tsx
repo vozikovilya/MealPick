@@ -151,36 +151,36 @@ export function SendRequest({ onDone }: Props) {
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setSendMode('category')}
-                className={`py-2.5 px-2 rounded-xl text-xs font-medium transition-all flex flex-col items-center gap-1 ${
+                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all flex flex-col items-center gap-1.5 ${
                   sendMode === 'category'
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <span className="text-lg">📋</span>
-                По категории
+                <List className="w-5 h-5" />
+                <span>Категория</span>
               </button>
               <button
                 onClick={() => setSendMode('select')}
-                className={`py-2.5 px-2 rounded-xl text-xs font-medium transition-all flex flex-col items-center gap-1 ${
+                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all flex flex-col items-center gap-1.5 ${
                   sendMode === 'select'
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <List className="w-4 h-4" />
-                Блюда
+                <Check className="w-5 h-5" />
+                <span>Блюда</span>
               </button>
               <button
                 onClick={() => setSendMode('delivery')}
-                className={`py-2.5 px-2 rounded-xl text-xs font-medium transition-all flex flex-col items-center gap-1 ${
+                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all flex flex-col items-center gap-1.5 ${
                   sendMode === 'delivery'
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <Truck className="w-4 h-4" />
-                Доставка
+                <Truck className="w-5 h-5" />
+                <span>Доставка</span>
               </button>
             </div>
           </div>
