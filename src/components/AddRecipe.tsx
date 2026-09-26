@@ -452,15 +452,15 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
         
         <div className="space-y-3 pl-10">
           <div className="p-3 bg-gray-50 rounded-xl space-y-2">
-            <div className="grid grid-cols-3 gap-2">
-              <input
-                type="text"
-                value={ingName}
-                onChange={(e) => setIngName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
-                placeholder="Продукт"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
+            <input
+              type="text"
+              value={ingName}
+              onChange={(e) => setIngName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
+              placeholder="Продукт (например: Куриная грудка)"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
               <input
                 type="text"
                 value={ingAmount}
@@ -474,7 +474,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
                 value={ingUnit}
                 onChange={(e) => setIngUnit(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
-                placeholder="г, шт, ст.л."
+                placeholder="Ед. (г, шт, ст.л.)"
                 className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
               />
             </div>
