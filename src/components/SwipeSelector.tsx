@@ -26,10 +26,21 @@ export function SwipeSelector({ requestId, onDone }: Props) {
     })
     .filter(Boolean) as Recipe[];
 
+  const categoryLabels: Record<string, string> = {
+    breakfast: '🌅 Завтрак',
+    lunch: '☀️ Обед',
+    dinner: '🌙 Ужин',
+  };
+
+  const subtitle = request.mode === 'category' && request.category
+    ? `Выберите из категории: ${categoryLabels[request.category]}`
+    : `${fromUser?.name} предлагает выбрать`;
+
   return (
     <SwipeContent
       recipes={recipes}
       fromUser={fromUser!}
+      subtitle={subtitle}
       onSubmit={(selected) => {
         respondToSwipeRequest(requestId, selected);
         onDone();
@@ -42,11 +53,13 @@ export function SwipeSelector({ requestId, onDone }: Props) {
 function SwipeContent({
   recipes,
   fromUser,
+  subtitle,
   onSubmit,
   onBack,
 }: {
   recipes: Recipe[];
   fromUser: { name: string; avatar: string };
+  subtitle: string;
   onSubmit: (selectedIds: string[]) => void;
   onBack: () => void;
 }) {
@@ -82,6 +95,7 @@ function SwipeContent({
         selected={selected}
         skipped={skipped}
         fromUser={fromUser}
+        subtitle={subtitle}
         onSubmit={() => onSubmit(selected)}
       />
     );
@@ -99,7 +113,7 @@ function SwipeContent({
         <div className="flex-1">
           <h2 className="text-lg font-bold text-gray-800">Выберите блюда</h2>
           <p className="text-xs text-gray-500">
-            {fromUser.avatar} {fromUser.name} предлагает выбрать
+            {subtitle}
           </p>
         </div>
         <span className="text-sm text-gray-400 font-medium">
@@ -282,12 +296,14 @@ function SummaryScreen({
   selected,
   skipped,
   fromUser,
+  subtitle,
   onSubmit,
 }: {
   recipes: Recipe[];
   selected: string[];
   skipped: string[];
   fromUser: { name: string; avatar: string };
+  subtitle: string;
   onSubmit: () => void;
 }) {
   const selectedRecipes = recipes.filter((r) => selected.includes(r.id));
@@ -302,6 +318,9 @@ function SummaryScreen({
       <div className="text-center">
         <h2 className="text-xl font-bold text-gray-800 mb-1">Ваш выбор готов!</h2>
         <p className="text-sm text-gray-500">
+          {subtitle}
+        </p>
+        <p className="text-xs text-gray-400 mt-1">
           Отправить {fromUser.name} выбранные блюда?
         </p>
       </div>

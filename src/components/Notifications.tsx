@@ -76,7 +76,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                     <button
                       onClick={() => {
                         markNotificationRead(notif.id);
-                        onOpenSwipe(notif.id!);
+                        onOpenSwipe(request.id);
                       }}
                       className="mt-3 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-1.5"
                     >
@@ -96,7 +96,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                     <button
                       onClick={() => {
                         markNotificationRead(notif.id);
-                        onViewResults(notif.id!);
+                        onViewResults(request?.id || '');
                       }}
                       className="mt-3 px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-xl hover:bg-green-600 transition-colors flex items-center gap-1.5"
                     >

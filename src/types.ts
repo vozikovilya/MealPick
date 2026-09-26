@@ -24,6 +24,8 @@ export interface SwipeRequest {
   status: 'pending' | 'completed';
   createdAt: number;
   selectedRecipeIds?: string[];
+  mode?: 'category' | 'select';
+  category?: 'breakfast' | 'lunch' | 'dinner';
 }
 
 export interface Notification {

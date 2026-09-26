@@ -12,7 +12,7 @@ interface AppState {
   setCurrentUser: (userId: string) => void;
   addRecipe: (recipe: Omit<Recipe, 'id' | 'ownerId' | 'createdAt'>) => void;
   deleteRecipe: (recipeId: string) => void;
-  sendSwipeRequest: (toUserId: string, recipeIds: string[]) => void;
+  sendSwipeRequest: (toUserId: string, recipeIds: string[], mode?: 'category' | 'select', category?: 'breakfast' | 'lunch' | 'dinner') => void;
   respondToSwipeRequest: (requestId: string, selectedRecipeIds: string[]) => void;
   markNotificationRead: (notificationId: string) => void;
   clearNotifications: () => void;
@@ -150,7 +150,7 @@ export const useStore = create<AppState>()(
         });
       },
 
-      sendSwipeRequest: (toUserId, recipeIds) => {
+      sendSwipeRequest: (toUserId, recipeIds, mode, category) => {
         const { currentUserId, swipeRequests, notifications, users } = get();
         const request: SwipeRequest = {
           id: `req_${Date.now()}`,
@@ -159,13 +159,29 @@ export const useStore = create<AppState>()(
           recipeIds,
           status: 'pending',
           createdAt: Date.now(),
+          mode,
+          category,
         };
         const fromUser = users.find((u) => u.id === currentUserId);
+        
+        const categoryLabels: Record<string, string> = {
+          breakfast: 'завтрак',
+          lunch: 'обед',
+          dinner: 'ужин',
+        };
+        
+        let message = '';
+        if (mode === 'category' && category) {
+          message = `${fromUser?.name} предлагает выбрать ${categoryLabels[category]}!`;
+        } else {
+          message = `${fromUser?.name} хочет, чтобы вы выбрали блюда!`;
+        }
+        
         const notification: Notification = {
           id: `notif_${Date.now()}`,
           type: 'swipe_request',
           fromUserId: currentUserId,
-          message: `${fromUser?.name} хочет, чтобы вы выбрали блюда!`,
+          message,
           requestId: request.id,
           read: false,
           createdAt: Date.now(),
