@@ -55,7 +55,7 @@ export function RecipeDetail({ recipe, onBack, onEdit }: Props) {
     >
       {/* Image Gallery */}
       <div
-        className="relative aspect-[4/3] overflow-hidden rounded-b-3xl"
+        className="relative aspect-[4/3] overflow-hidden -mt-6"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -159,10 +159,10 @@ export function RecipeDetail({ recipe, onBack, onEdit }: Props) {
               <span className="text-lg">🥘</span> Ингредиенты
               <span className="text-xs text-gray-400 font-normal">({recipe.ingredients.length})</span>
             </h3>
-            <div className="bg-orange-50/50 rounded-2xl p-4 border border-orange-100">
+            <div className="bg-orange-50/50 rounded-2xl px-4 py-2 border border-orange-100">
               <div className="divide-y divide-orange-100">
                 {recipe.ingredients.map((ing) => (
-                  <div key={ing.id} className="flex items-center justify-between py-2.5">
+                  <div key={ing.id} className="flex items-center justify-between py-2">
                     <span className="text-sm text-gray-800">{ing.name}</span>
                     <span className="text-sm font-medium text-orange-600 bg-orange-100 px-2.5 py-0.5 rounded-full">
                       {formatIngredient(ing)}

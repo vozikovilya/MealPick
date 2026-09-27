@@ -283,9 +283,8 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
           >
-            <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center gap-3">
+            <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center gap-3 my-2">
               <button
                 onClick={toggleSelectAll}
                 className="flex items-center gap-2 cursor-pointer flex-1"
