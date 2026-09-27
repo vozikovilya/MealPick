@@ -119,7 +119,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
 
       {/* Content */}
       {viewMode === 'list' ? (
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 px-1">
           {/* Основные типы */}
           {Object.entries(groupedRecipes).map(([type, recipes]) => {
             const mealType = allMealTypes.find((m) => m.id === type);
@@ -152,7 +152,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="space-y-3 overflow-hidden"
+                      className="space-y-3 py-1"
                     >
                       {recipes.map((recipe, index) => (
                         <RecipeCard
@@ -207,7 +207,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="space-y-3 overflow-hidden"
+                          className="space-y-3 py-1"
                         >
                           {recipes.map((recipe, index) => (
                             <RecipeCard
@@ -228,7 +228,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 px-1">
           {/* Основные типы */}
           {Object.keys(groupedRecipes).length > 0 && (
             <div className="space-y-4">
@@ -260,7 +260,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="grid grid-cols-2 gap-3 overflow-hidden"
+                          className="grid grid-cols-2 gap-3 py-1"
                         >
                           {recipes.map((recipe, index) => (
                             <RecipeGridCard
@@ -314,7 +314,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="grid grid-cols-2 gap-3 overflow-hidden"
+                          className="grid grid-cols-2 gap-3 py-1"
                         >
                           {recipes.map((recipe, index) => (
                             <RecipeGridCard
