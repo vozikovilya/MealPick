@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { Bell, ArrowRight, CheckCheck, Inbox, Check, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare, Square } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getRecipeImage, FALLBACK_IMAGE } from '../utils';
 
 interface Props {
@@ -13,6 +13,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
   const { notifications, users, swipeRequests, markNotificationRead, markNotificationsRead, markAllNotificationsRead, deleteNotifications, currentUserId } = useStore();
   const [viewingRequestId, setViewingRequestId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   const sortedNotifications = [...notifications].sort((a, b) => b.createdAt - a.createdAt);
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -43,15 +44,25 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
     if (selectedIds.length === 0) return;
     markNotificationsRead(selectedIds);
     setSelectedIds([]);
+    setSelectionMode(false);
   };
 
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) return;
     deleteNotifications(selectedIds);
     setSelectedIds([]);
+    setSelectionMode(false);
   };
 
-  const allSelected = selectedIds.length === sortedNotifications.length && sortedNotifications.length > 0;
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectionMode(false);
+      setSelectedIds([]);
+    } else {
+      setSelectionMode(true);
+    }
+  };
+
   const someSelected = selectedIds.length > 0;
 
   // Если открыт просмотр деталей запроса
@@ -66,7 +77,6 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
     const isForMe = request.toUserId === currentUserId;
     const isMyResponse = request.fromUserId === currentUserId;
 
-    // Получаем рецепты
     const recipes = isForMe
       ? request.recipeIds
           .map((id) => allRecipes.find((r) => r.id === id))
@@ -91,7 +101,6 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
           <h2 className="text-xl font-bold text-gray-800">Детали запроса</h2>
         </div>
 
-        {/* Информация о запросе */}
         <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border border-orange-100">
           <div className="flex items-center gap-3 mb-3">
             <span className="text-3xl">{isForMe ? fromUser?.avatar : toUser?.avatar}</span>
@@ -117,7 +126,6 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
           )}
         </div>
 
-        {/* Статус */}
         <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl">
           <div className={`w-2 h-2 rounded-full ${request.status === 'completed' ? 'bg-green-500' : 'bg-orange-500'}`} />
           <span className="text-sm text-gray-600">
@@ -125,7 +133,6 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
           </span>
         </div>
 
-        {/* Рецепты */}
         {isForMe && recipes.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-700">
@@ -155,7 +162,6 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
           </div>
         )}
 
-        {/* Выбранные рецепты (если это мой ответ) */}
         {isMyResponse && selectedRecipes.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-700">
@@ -186,7 +192,6 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
           </div>
         )}
 
-        {/* Кнопка действия */}
         {isForMe && request.status === 'pending' && (
           <button
             onClick={() => {
@@ -238,48 +243,86 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-800">Запросы и ответы</h2>
-        {unreadCount > 0 && (
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllNotificationsRead}
+              className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors flex items-center gap-1"
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              Прочитать всё
+            </button>
+          )}
           <button
-            onClick={markAllNotificationsRead}
-            className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors flex items-center gap-1"
+            onClick={toggleSelectionMode}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 ${
+              selectionMode
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+            }`}
           >
-            <CheckCheck className="w-3.5 h-3.5" />
-            Прочитать всё
+            {selectionMode ? (
+              <>
+                <Square className="w-3.5 h-3.5" />
+                Отменить
+              </>
+            ) : (
+              <>
+                <CheckSquare className="w-3.5 h-3.5" />
+                Выделить
+              </>
+            )}
           </button>
-        )}
+        </div>
       </div>
 
       {/* Bulk Actions */}
-      <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center gap-3">
-        <label className="flex items-center gap-2 cursor-pointer flex-1">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={toggleSelectAll}
-            className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-200"
-          />
-          <span className="text-sm font-medium text-gray-700">Выделить все</span>
-        </label>
-        
-        {someSelected && (
-          <div className="flex gap-2">
-            <button
-              onClick={handleMarkSelectedRead}
-              className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
-            >
-              <CheckCheck className="w-3.5 h-3.5" />
-              Прочитать ({selectedIds.length})
-            </button>
-            <button
-              onClick={handleDeleteSelected}
-              className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Удалить ({selectedIds.length})
-            </button>
-          </div>
+      <AnimatePresence>
+        {selectionMode && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center gap-3 my-2">
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center gap-2 cursor-pointer flex-1"
+              >
+                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  selectedIds.length === sortedNotifications.length
+                    ? 'bg-orange-500 border-orange-500'
+                    : 'border-gray-300 hover:border-orange-300'
+                }`}>
+                  {selectedIds.length === sortedNotifications.length && (
+                    <Check className="w-3 h-3 text-white" />
+                  )}
+                </div>
+                <span className="text-sm font-medium text-gray-700">Выделить все</span>
+              </button>
+              
+              {someSelected && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleMarkSelectedRead}
+                    className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    Прочитать ({selectedIds.length})
+                  </button>
+                  <button
+                    onClick={handleDeleteSelected}
+                    className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Удалить ({selectedIds.length})
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
       <div className="space-y-3">
         {sortedNotifications.map((notif, index) => {
@@ -305,12 +348,20 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
             >
               <div className="flex items-start gap-3">
                 {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleSelection(notif.id)}
-                  className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-200 mt-1 flex-shrink-0"
-                />
+                {selectionMode && (
+                  <button
+                    onClick={() => toggleSelection(notif.id)}
+                    className="flex-shrink-0 mt-1"
+                  >
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                      isSelected
+                        ? 'bg-orange-500 border-orange-500'
+                        : 'border-gray-300 hover:border-orange-300'
+                    }`}>
+                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    </div>
+                  </button>
+                )}
 
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0 ${
                   !notif.read ? 'bg-orange-100' : 'bg-gray-100'
@@ -338,8 +389,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                     })}
                   </p>
 
-                  {/* Action button */}
-                  {isForMe && request?.status === 'pending' && (
+                  {isForMe && request?.status === 'pending' && !selectionMode && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -362,7 +412,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                     </div>
                   )}
 
-                  {isMyResponse && (
+                  {isMyResponse && !selectionMode && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

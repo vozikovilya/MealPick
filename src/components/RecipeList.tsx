@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, useAllMealTypes } from '../store';
 import { Recipe } from '../types';
-import { Clock, Trash2, ChevronDown, ChevronRight, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
+import { Clock, Trash2, ChevronDown, ChevronUp, ChevronRight, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRecipeImage, getRecipeImages, FALLBACK_IMAGE } from '../utils';
 import { RecipeDetail } from './RecipeDetail';
@@ -14,14 +14,21 @@ interface Props {
 }
 
 export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
-  const { users, currentUserId, deleteRecipe } = useStore();
+  const { users, currentUserId, deleteRecipe, familyProfile } = useStore();
   const allMealTypes = useAllMealTypes();
   const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : null;
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
-  if (!currentUser || currentUser.recipes.length === 0) {
+  // Получаем все рецепты семьи (если есть семья) или только свои
+  const allFamilyRecipes = familyProfile
+    ? users
+        .filter((u) => familyProfile.memberIds.includes(u.id))
+        .flatMap((u) => u.recipes)
+    : currentUser?.recipes || [];
+
+  if (allFamilyRecipes.length === 0) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">🍽️</div>
@@ -46,14 +53,14 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   const collectionRecipes: Record<string, Recipe[]> = {};
   
   mainMealTypes.forEach((mt) => {
-    const recipes = currentUser.recipes.filter((r) => r.mealType === mt.id);
+    const recipes = allFamilyRecipes.filter((r) => r.mealType === mt.id);
     if (recipes.length > 0) {
       groupedRecipes[mt.id] = recipes;
     }
   });
   
   collectionMealTypes.forEach((mt) => {
-    const recipes = currentUser.recipes.filter((r) => r.mealType === mt.id);
+    const recipes = allFamilyRecipes.filter((r) => r.mealType === mt.id);
     if (recipes.length > 0) {
       collectionRecipes[mt.id] = recipes;
     }
@@ -69,6 +76,26 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
     setCollapsedCategories(newCollapsed);
   };
 
+  // Функция для проверки прав на удаление
+  const canDeleteRecipe = (recipe: Recipe): boolean => {
+    if (!currentUserId || !currentUser) return false;
+    
+    const isOwner = recipe.ownerId === currentUserId;
+    const isFamilyHead = familyProfile?.ownerId === currentUserId;
+    const hasChefStatus = currentUser.familyStatus?.title === 'Поварушка';
+    
+    return isOwner || isFamilyHead || hasChefStatus;
+  };
+
+  // Функция для получения информации об авторе
+  const getRecipeAuthor = (recipe: Recipe) => {
+    const author = users.find((u) => u.id === recipe.ownerId);
+    return {
+      name: author?.name,
+      avatar: author?.avatar,
+    };
+  };
+
   // Если выбрано блюдо — показываем детали
   if (selectedRecipe) {
     return (
@@ -81,14 +108,18 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">{currentUser.avatar}</span>
+          <span className="text-3xl">{familyProfile ? familyProfile.avatar : currentUser?.avatar}</span>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Моё меню</h2>
-            <p className="text-sm text-gray-500">{currentUser.recipes.length} {currentUser.recipes.length === 1 ? 'блюдо' : currentUser.recipes.length < 5 ? 'блюда' : 'блюд'}</p>
+            <h2 className="text-lg font-bold text-gray-800">
+              {familyProfile ? familyProfile.name : 'Моё меню'}
+            </h2>
+            <p className="text-sm text-gray-500">
+              {allFamilyRecipes.length} {allFamilyRecipes.length === 1 ? 'блюдо' : allFamilyRecipes.length < 5 ? 'блюда' : 'блюд'}
+            </p>
           </div>
         </div>
         
@@ -119,7 +150,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
 
       {/* Content */}
       {viewMode === 'list' ? (
-        <div className="space-y-4">
+        <div className="space-y-4 py-2 px-1">
           {/* Основные типы */}
           {Object.entries(groupedRecipes).map(([type, recipes]) => {
             const mealType = allMealTypes.find((m) => m.id === type);
@@ -137,9 +168,9 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                   </h3>
                   <div className="p-1 rounded-lg bg-gray-100">
                     {collapsedCategories.has(type) ? (
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    ) : (
                       <ChevronDown className="w-4 h-4 text-gray-400" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-gray-400" />
                     )}
                   </div>
                 </button>
@@ -152,17 +183,23 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="space-y-3 overflow-hidden"
+                      className="space-y-3 py-1"
                     >
-                      {recipes.map((recipe, index) => (
-                        <RecipeCard
-                          key={recipe.id}
-                          recipe={recipe}
-                          onDelete={deleteRecipe}
-                          onView={setSelectedRecipe}
-                          index={index}
-                        />
-                      ))}
+                      {recipes.map((recipe, index) => {
+                        const author = getRecipeAuthor(recipe);
+                        return (
+                          <RecipeCard
+                            key={recipe.id}
+                            recipe={recipe}
+                            onDelete={(id) => deleteRecipe(id)}
+                            onView={setSelectedRecipe}
+                            index={index}
+                            canDelete={canDeleteRecipe(recipe)}
+                            authorName={author.name}
+                            authorAvatar={author.avatar}
+                          />
+                        );
+                      })}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -173,8 +210,13 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           {/* Подборки */}
           {Object.keys(collectionRecipes).length > 0 && (
             <>
-              <div className="pt-4 pb-2">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Подборки</h3>
+              <div className="pt-6 pb-2">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl px-4 py-3 border border-purple-100">
+                  <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
+                    <span>✨</span>
+                    <span>Подборки</span>
+                  </h3>
+                </div>
               </div>
               {Object.entries(collectionRecipes).map(([type, recipes]) => {
                 const mealType = allMealTypes.find((m) => m.id === type);
@@ -183,18 +225,18 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                     {/* Collapsible Header */}
                     <button
                       onClick={() => toggleCategory(type)}
-                      className="w-full flex items-center justify-between mb-3 p-2 rounded-xl hover:bg-orange-50/50 transition-colors"
+                      className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-gradient-to-r from-purple-50/50 to-pink-50/50 hover:from-purple-100/50 hover:to-pink-100/50 transition-colors border border-purple-100/50"
                     >
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
                         <span>{mealType?.emoji}</span>
                         <span>{mealType?.name}</span>
-                        <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
+                        <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
                       </h3>
-                      <div className="p-1 rounded-lg bg-gray-100">
+                      <div className="p-1 rounded-lg bg-white/80">
                         {collapsedCategories.has(type) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronDown className="w-4 h-4 text-purple-500" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                          <ChevronUp className="w-4 h-4 text-purple-500" />
                         )}
                       </div>
                     </button>
@@ -207,17 +249,23 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="space-y-3 overflow-hidden"
+                          className="space-y-3 py-1"
                         >
-                          {recipes.map((recipe, index) => (
-                            <RecipeCard
-                              key={recipe.id}
-                              recipe={recipe}
-                              onDelete={deleteRecipe}
-                              onView={setSelectedRecipe}
-                              index={index}
-                            />
-                          ))}
+                          {recipes.map((recipe, index) => {
+                            const author = getRecipeAuthor(recipe);
+                            return (
+                              <RecipeCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                onDelete={(id) => deleteRecipe(id)}
+                                onView={setSelectedRecipe}
+                                index={index}
+                                canDelete={canDeleteRecipe(recipe)}
+                                authorName={author.name}
+                                authorAvatar={author.avatar}
+                              />
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -228,7 +276,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 px-1">
           {/* Основные типы */}
           {Object.keys(groupedRecipes).length > 0 && (
             <div className="space-y-4">
@@ -247,9 +295,9 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       </h3>
                       <div className="p-1 rounded-lg bg-gray-100">
                         {collapsedCategories.has(type) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                        ) : (
                           <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
                         )}
                       </div>
                     </button>
@@ -260,17 +308,23 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="grid grid-cols-2 gap-3 overflow-hidden"
+                          className="grid grid-cols-2 gap-3 py-1"
                         >
-                          {recipes.map((recipe, index) => (
-                            <RecipeGridCard
-                              key={recipe.id}
-                              recipe={recipe}
-                              onDelete={deleteRecipe}
-                              onView={setSelectedRecipe}
-                              index={index}
-                            />
-                          ))}
+                          {recipes.map((recipe, index) => {
+                            const author = getRecipeAuthor(recipe);
+                            return (
+                              <RecipeGridCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                onDelete={(id) => deleteRecipe(id)}
+                                onView={setSelectedRecipe}
+                                index={index}
+                                canDelete={canDeleteRecipe(recipe)}
+                                authorName={author.name}
+                                authorAvatar={author.avatar}
+                              />
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -283,8 +337,13 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           {/* Подборки */}
           {Object.keys(collectionRecipes).length > 0 && (
             <div className="space-y-4">
-              <div className="pt-2 pb-1">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Подборки</h3>
+              <div className="pt-6 pb-2">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl px-4 py-3 border border-purple-100">
+                  <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
+                    <span>✨</span>
+                    <span>Подборки</span>
+                  </h3>
+                </div>
               </div>
               {Object.entries(collectionRecipes).map(([type, recipes]) => {
                 const mealType = allMealTypes.find((m) => m.id === type);
@@ -292,18 +351,18 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                   <div key={type}>
                     <button
                       onClick={() => toggleCategory(type)}
-                      className="w-full flex items-center justify-between mb-3 p-2 rounded-xl hover:bg-orange-50/50 transition-colors"
+                      className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-gradient-to-r from-purple-50/50 to-pink-50/50 hover:from-purple-100/50 hover:to-pink-100/50 transition-colors border border-purple-100/50"
                     >
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
                         <span>{mealType?.emoji}</span>
                         <span>{mealType?.name}</span>
-                        <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
+                        <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
                       </h3>
-                      <div className="p-1 rounded-lg bg-gray-100">
+                      <div className="p-1 rounded-lg bg-white/80">
                         {collapsedCategories.has(type) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronDown className="w-4 h-4 text-purple-500" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                          <ChevronUp className="w-4 h-4 text-purple-500" />
                         )}
                       </div>
                     </button>
@@ -314,17 +373,23 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="grid grid-cols-2 gap-3 overflow-hidden"
+                          className="grid grid-cols-2 gap-3 py-1"
                         >
-                          {recipes.map((recipe, index) => (
-                            <RecipeGridCard
-                              key={recipe.id}
-                              recipe={recipe}
-                              onDelete={deleteRecipe}
-                              onView={setSelectedRecipe}
-                              index={index}
-                            />
-                          ))}
+                          {recipes.map((recipe, index) => {
+                            const author = getRecipeAuthor(recipe);
+                            return (
+                              <RecipeGridCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                onDelete={(id) => deleteRecipe(id)}
+                                onView={setSelectedRecipe}
+                                index={index}
+                                canDelete={canDeleteRecipe(recipe)}
+                                authorName={author.name}
+                                authorAvatar={author.avatar}
+                              />
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -344,11 +409,17 @@ function RecipeCard({
   onDelete,
   onView,
   index,
+  canDelete,
+  authorName,
+  authorAvatar,
 }: {
   recipe: Recipe;
   onDelete: (id: string) => void;
   onView: (recipe: Recipe) => void;
   index: number;
+  canDelete: boolean;
+  authorName?: string;
+  authorAvatar?: string;
 }) {
   const images = getRecipeImages(recipe);
   
@@ -398,15 +469,23 @@ function RecipeCard({
               >
                 <Eye className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => onDelete(recipe.id)}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {canDelete && (
+                <button
+                  onClick={() => onDelete(recipe.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2">
+            {authorName && authorAvatar && (
+              <div className="flex items-center gap-1 text-xs text-gray-400">
+                <span>{authorAvatar}</span>
+                <span>{authorName}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1 text-xs text-gray-400">
               <Clock className="w-3 h-3" />
               <span>{formatIngredients()}</span>
@@ -438,11 +517,17 @@ function RecipeGridCard({
   onDelete,
   onView,
   index,
+  canDelete,
+  authorName,
+  authorAvatar,
 }: {
   recipe: Recipe;
   onDelete: (id: string) => void;
   onView: (recipe: Recipe) => void;
   index: number;
+  canDelete: boolean;
+  authorName?: string;
+  authorAvatar?: string;
 }) {
   const images = getRecipeImages(recipe);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -489,11 +574,11 @@ function RecipeGridCard({
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group"
+      className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group"
     >
       {/* Image with swipe controls */}
       <div
-        className="relative aspect-square overflow-hidden cursor-pointer"
+        className="relative aspect-square overflow-hidden cursor-pointer rounded-t-2xl"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -517,15 +602,19 @@ function RecipeGridCard({
           <>
             <button
               onClick={handlePrevImage}
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-lg leading-none"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              ‹
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
             <button
               onClick={handleNextImage}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-lg leading-none"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              ›
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </button>
             
             {/* Dots indicator */}
@@ -558,15 +647,17 @@ function RecipeGridCard({
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(recipe.id);
-            }}
-            className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {canDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(recipe.id);
+              }}
+              className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -575,12 +666,19 @@ function RecipeGridCard({
         <h4 className="font-semibold text-gray-800 text-sm truncate">{recipe.name}</h4>
         <p className="text-xs text-gray-500 mt-1 line-clamp-2">{recipe.description}</p>
         <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3 text-gray-400" />
-            <span className="text-xs text-gray-400">
-              {recipe.ingredients?.length || 0} ингр.
-            </span>
-          </div>
+          {authorName && authorAvatar ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs">{authorAvatar}</span>
+              <span className="text-xs text-gray-400">{authorName}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Clock className="w-3 h-3 text-gray-400" />
+              <span className="text-xs text-gray-400">
+                {recipe.ingredients?.length || 0} ингр.
+              </span>
+            </div>
+          )}
           {images.length > 1 && (
             <div className="flex items-center gap-0.5 text-gray-400">
               <Image className="w-3 h-3" />

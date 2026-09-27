@@ -13,11 +13,15 @@ export function AuthScreen({ onAuth }: Props) {
   const { login, register } = useStore();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
+  const [loginInput, setLoginInput] = useState(''); // Для входа: email или username
+  const [username, setUsername] = useState(''); // Для регистрации
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState('👤');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const avatars = ['👨‍🍳', '👩‍🍳', '🧑‍🍳', '👨', '👩', '🧑', '👦', '👧', '🧒', '👤', '🦸‍♂️', '🦸‍♀️', '🧙‍♂️', '🧙‍♀️', '🎅', '🤶'];
 
   const handleDemoLogin = () => {
     const result = login('vozikov-ilya@mail.ru', 'ilya');
@@ -33,7 +37,11 @@ export function AuthScreen({ onAuth }: Props) {
     setError('');
 
     if (mode === 'login') {
-      const result = login(email || username, password);
+      if (!loginInput || !password) {
+        setError('Заполните все поля');
+        return;
+      }
+      const result = login(loginInput, password);
       if (result.success) {
         onAuth();
       } else {
@@ -44,7 +52,7 @@ export function AuthScreen({ onAuth }: Props) {
         setError('Заполните все поля');
         return;
       }
-      const result = register(email, username, password, name);
+      const result = register(email, username, password, name, avatar);
       if (result.success) {
         setShowSuccess(true);
         setTimeout(() => {
@@ -176,49 +184,88 @@ export function AuthScreen({ onAuth }: Props) {
         <div className="bg-white rounded-3xl shadow-xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Имя</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ваше имя"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
-                  />
+              <>
+                {/* Выбор аватарки */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Выберите аватар</label>
+                  <div className="grid grid-cols-8 gap-2">
+                    {avatars.map((a) => (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => setAvatar(a)}
+                        className={`w-10 h-10 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                          avatar === a
+                            ? 'bg-orange-100 ring-2 ring-orange-400 scale-110'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Имя</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ваше имя"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            {mode === 'register' && (
+            {mode === 'login' ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Логин</label>
+                <label className="text-sm font-medium text-gray-700">Email или логин</label>
                 <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="username"
+                    value={loginInput}
+                    onChange={(e) => setLoginInput(e.target.value)}
+                    placeholder="your@email.com или username"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                   />
                 </div>
               </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Логин</label>
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="username"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
@@ -253,7 +300,8 @@ export function AuthScreen({ onAuth }: Props) {
           {mode === 'login' && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
               <p className="text-xs text-blue-700 font-medium mb-2">Демо-доступ:</p>
-              <p className="text-xs text-blue-600 mb-2">Email: vozikov-ilya@mail.ru</p>
+              <p className="text-xs text-blue-600 mb-1">Email: vozikov-ilya@mail.ru</p>
+              <p className="text-xs text-blue-600 mb-1">Логин: ilya</p>
               <p className="text-xs text-blue-600 mb-3">Пароль: ilya</p>
               <button
                 type="button"

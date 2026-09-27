@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Recipe, User, SwipeRequest, Notification, Ingredient, MealTypeOption, DeliveryOption, CookingStep, FamilyProfile } from './types';
+import { Recipe, User, SwipeRequest, Notification, Ingredient, MealTypeOption, DeliveryOption, CookingStep, FamilyProfile, FamilyStatus, FamilyJoinRequest } from './types';
 
 interface AppState {
   users: User[];
   currentUserId: string | null;
   familyProfile: FamilyProfile | null;
+  familyJoinRequests: FamilyJoinRequest[];
   swipeRequests: SwipeRequest[];
   notifications: Notification[];
   customMealTypes: MealTypeOption[];
@@ -13,7 +14,7 @@ interface AppState {
   pendingNotification: Notification | null;
 
   // Auth
-  register: (email: string, username: string, password: string, name: string) => { success: boolean; message: string };
+  register: (email: string, username: string, password: string, name: string, avatar?: string) => { success: boolean; message: string };
   login: (emailOrUsername: string, password: string) => { success: boolean; message: string };
   logout: () => void;
   updateProfile: (data: { name?: string; avatar?: string; description?: string }) => void;
@@ -25,13 +26,18 @@ interface AppState {
   updateFamilyProfile: (data: { name?: string; avatar?: string; description?: string }) => void;
   deleteFamilyProfile: () => { success: boolean; message: string };
   removeFamilyMember: (memberId: string) => { success: boolean; message: string };
+  requestJoinFamily: (inviteLink: string) => { success: boolean; message: string };
+  respondToJoinRequest: (requestId: string, accept: boolean) => void;
+  addFamilyStatus: (userId: string, title: string, emoji: string) => { success: boolean; message: string };
+  removeFamilyStatus: (userId: string) => void;
   
   setCurrentUser: (userId: string) => void;
   addRecipe: (recipe: Omit<Recipe, 'id' | 'ownerId' | 'createdAt'>) => void;
   updateRecipe: (recipeId: string, recipe: Omit<Recipe, 'id' | 'ownerId' | 'createdAt'>) => void;
-  deleteRecipe: (recipeId: string) => void;
+  deleteRecipe: (recipeId: string) => { success: boolean; message: string };
   sendSwipeRequest: (
-    toUserId: string,
+    toUserId: string | null,
+    toFamilyId: string | null,
     recipeIds: string[],
     options?: {
       mode?: 'category' | 'select' | 'delivery';
@@ -267,6 +273,7 @@ export const useStore = create<AppState>()(
       users: [defaultUser],
       currentUserId: null, // По умолчанию не авторизован
       familyProfile: null,
+      familyJoinRequests: [],
       swipeRequests: [],
       notifications: [],
       customMealTypes: [],
@@ -274,7 +281,7 @@ export const useStore = create<AppState>()(
       pendingNotification: null,
 
       // Auth
-      register: (email, username, password, name) => {
+      register: (email, username, password, name, avatar = '👤') => {
         const { users } = get();
         if (users.find(u => u.email === email)) {
           return { success: false, message: 'Пользователь с таким email уже существует' };
@@ -288,7 +295,7 @@ export const useStore = create<AppState>()(
           username,
           password,
           name,
-          avatar: '👤',
+          avatar,
           recipes: [],
         };
         set({
@@ -455,6 +462,160 @@ export const useStore = create<AppState>()(
         return { success: true, message: 'Участник удалён из семьи' };
       },
 
+      requestJoinFamily: (inviteLink) => {
+        const { currentUserId, familyProfile, familyJoinRequests, users, notifications } = get();
+        if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
+        
+        // Извлекаем familyId из ссылки
+        const familyId = inviteLink.split('/').pop();
+        if (!familyId) return { success: false, message: 'Неверная ссылка-приглашение' };
+        
+        // Проверяем, существует ли семья
+        const targetFamily = familyProfile?.id === familyId ? familyProfile : null;
+        if (!targetFamily) return { success: false, message: 'Семья не найдена' };
+        
+        // Проверяем, не состоит ли пользователь уже в семье
+        const currentUser = users.find(u => u.id === currentUserId);
+        if (currentUser?.familyId) {
+          return { success: false, message: 'Вы уже состоите в семье' };
+        }
+        
+        // Проверяем, не отправлял ли пользователь уже заявку
+        const existingRequest = familyJoinRequests.find(
+          r => r.familyId === familyId && r.userId === currentUserId && r.status === 'pending'
+        );
+        if (existingRequest) {
+          return { success: false, message: 'Вы уже отправили заявку' };
+        }
+        
+        // Создаём заявку
+        const newRequest: FamilyJoinRequest = {
+          id: `fjr_${Date.now()}`,
+          familyId,
+          userId: currentUserId,
+          status: 'pending',
+          createdAt: Date.now(),
+        };
+        
+        // Создаём уведомление для главы семьи
+        const notification: Notification = {
+          id: `notif_${Date.now()}`,
+          type: 'family_join_request',
+          fromUserId: currentUserId,
+          message: `${currentUser?.name} хочет присоединиться к вашей семье`,
+          familyJoinRequestId: newRequest.id,
+          read: false,
+          createdAt: Date.now(),
+        };
+        
+        set({
+          familyJoinRequests: [...familyJoinRequests, newRequest],
+          notifications: [...notifications, notification],
+          pendingNotification: notification,
+        });
+        
+        return { success: true, message: 'Заявка отправлена' };
+      },
+
+      respondToJoinRequest: (requestId, accept) => {
+        const { familyJoinRequests, users, familyProfile, notifications, currentUserId } = get();
+        const request = familyJoinRequests.find(r => r.id === requestId);
+        if (!request) return;
+        
+        const requestingUser = users.find(u => u.id === request.userId);
+        const currentUser = users.find(u => u.id === currentUserId);
+        
+        // Обновляем статус заявки
+        const updatedRequests = familyJoinRequests.map(r =>
+          r.id === requestId
+            ? { ...r, status: accept ? 'accepted' as const : 'rejected' as const, processedAt: Date.now() }
+            : r
+        );
+        
+        // Создаём уведомление для заявителя
+        const notification: Notification = {
+          id: `notif_${Date.now()}`,
+          type: 'family_join_response',
+          fromUserId: currentUserId!,
+          message: accept
+            ? `Вы приняты в семью "${familyProfile?.name}"! 🎉`
+            : `Ваша заявка в семью "${familyProfile?.name}" отклонена 😔`,
+          familyJoinRequestId: requestId,
+          read: false,
+          createdAt: Date.now(),
+        };
+        
+        if (accept && familyProfile) {
+          // Добавляем пользователя в семью
+          set({
+            familyJoinRequests: updatedRequests,
+            familyProfile: {
+              ...familyProfile,
+              memberIds: [...familyProfile.memberIds, request.userId],
+            },
+            users: users.map(u =>
+              u.id === request.userId ? { ...u, familyId: familyProfile.id } : u
+            ),
+            notifications: [...notifications, notification],
+            pendingNotification: notification,
+          });
+        } else {
+          set({
+            familyJoinRequests: updatedRequests,
+            notifications: [...notifications, notification],
+            pendingNotification: notification,
+          });
+        }
+      },
+
+      addFamilyStatus: (userId, title, emoji) => {
+        const { currentUserId, familyProfile, users } = get();
+        if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
+        if (!familyProfile) return { success: false, message: 'Профиль семьи не найден' };
+        
+        // Только глава семьи может добавлять статусы
+        if (familyProfile.ownerId !== currentUserId) {
+          return { success: false, message: 'Только глава семьи может назначать статусы' };
+        }
+        
+        // Нельзя назначить статус самому себе
+        if (userId === currentUserId) {
+          return { success: false, message: 'Нельзя назначить статус самому себе' };
+        }
+        
+        const newStatus: FamilyStatus = {
+          id: `fs_${Date.now()}`,
+          userId,
+          title,
+          emoji,
+          createdBy: currentUserId,
+          createdAt: Date.now(),
+        };
+        
+        set({
+          users: users.map(u =>
+            u.id === userId ? { ...u, familyStatus: newStatus } : u
+          ),
+        });
+        
+        return { success: true, message: 'Статус назначен' };
+      },
+
+      removeFamilyStatus: (userId) => {
+        const { currentUserId, familyProfile, users } = get();
+        if (!currentUserId) return;
+        if (!familyProfile) return;
+        
+        // Только глава семьи может удалять статусы
+        if (familyProfile.ownerId !== currentUserId) return;
+        
+        set({
+          users: users.map(u =>
+            u.id === userId ? { ...u, familyStatus: undefined } : u
+          ),
+        });
+      },
+
       setCurrentUser: (userId) => set({ currentUserId: userId }),
 
       addRecipe: (recipeData) => {
@@ -497,22 +658,39 @@ export const useStore = create<AppState>()(
       },
 
       deleteRecipe: (recipeId) => {
-        const { users } = get();
+        const { users, currentUserId, familyProfile } = get();
+        const currentUser = users.find((u) => u.id === currentUserId);
+        
+        // Проверка прав: только владелец рецепта, глава семьи или поварушка могут удалять
+        const recipe = users.flatMap((u) => u.recipes).find((r) => r.id === recipeId);
+        if (!recipe) return { success: false, message: 'Блюдо не найдено' };
+        
+        const isOwner = recipe.ownerId === currentUserId;
+        const isFamilyHead = familyProfile?.ownerId === currentUserId;
+        const hasChefStatus = currentUser?.familyStatus?.title === 'Поварушка';
+        
+        if (!isOwner && !isFamilyHead && !hasChefStatus) {
+          return { success: false, message: 'У вас нет прав на удаление этого блюда' };
+        }
+        
         set({
           users: users.map((u) => ({
             ...u,
             recipes: u.recipes.filter((r) => r.id !== recipeId),
           })),
         });
+        return { success: true, message: 'Блюдо удалено' };
       },
 
-      sendSwipeRequest: (toUserId, recipeIds, options = {}) => {
-        const { currentUserId, swipeRequests, notifications, users } = get();
+      sendSwipeRequest: (toUserId, toFamilyId, recipeIds, options = {}) => {
+        const { currentUserId, swipeRequests, notifications, users, familyProfile } = get();
         if (!currentUserId) return;
+        
         const request: SwipeRequest = {
           id: `req_${Date.now()}`,
           fromUserId: currentUserId,
-          toUserId,
+          toUserId: toUserId || undefined,
+          toFamilyId: toFamilyId || undefined,
           recipeIds,
           status: 'pending',
           createdAt: Date.now(),
@@ -520,8 +698,11 @@ export const useStore = create<AppState>()(
           category: options.category,
           message: options.message,
           deliveryIds: options.deliveryIds,
+          responses: {},
         };
+        
         const fromUser = users.find((u) => u.id === currentUserId);
+        const notificationsToAdd: Notification[] = [];
 
         let message = '';
         if (options.mode === 'delivery') {
@@ -534,35 +715,59 @@ export const useStore = create<AppState>()(
           message = `${fromUser?.name} хочет, чтобы вы выбрали блюда!`;
         }
 
-        const notification: Notification = {
-          id: `notif_${Date.now()}`,
-          type: 'swipe_request',
-          fromUserId: currentUserId,
-          message,
-          senderMessage: options.message,
-          requestId: request.id,
-          read: false,
-          createdAt: Date.now(),
-        };
+        // Если отправлено всей семье
+        if (toFamilyId && familyProfile) {
+          const familyMembers = users.filter((u) => 
+            familyProfile.memberIds.includes(u.id) && u.id !== currentUserId
+          );
+          
+          familyMembers.forEach((member) => {
+            const notification: Notification = {
+              id: `notif_${Date.now()}_${member.id}`,
+              type: 'swipe_request',
+              fromUserId: currentUserId,
+              message,
+              senderMessage: options.message,
+              requestId: request.id,
+              read: false,
+              createdAt: Date.now(),
+            };
+            notificationsToAdd.push(notification);
+          });
+        } else if (toUserId) {
+          // Отправлено конкретному пользователю
+          const notification: Notification = {
+            id: `notif_${Date.now()}`,
+            type: 'swipe_request',
+            fromUserId: currentUserId,
+            message,
+            senderMessage: options.message,
+            requestId: request.id,
+            read: false,
+            createdAt: Date.now(),
+          };
+          notificationsToAdd.push(notification);
+        }
+
         set({
           swipeRequests: [...swipeRequests, request],
-          notifications: [...notifications, notification],
-          pendingNotification: notification,
+          notifications: [...notifications, ...notificationsToAdd],
+          pendingNotification: notificationsToAdd[0] || null,
         });
       },
 
       respondToSwipeRequest: (requestId, selectedRecipeIds) => {
-        const { swipeRequests, notifications, users } = get();
+        const { swipeRequests, notifications, users, currentUserId } = get();
         const request = swipeRequests.find((r) => r.id === requestId);
-        if (!request) return;
+        if (!request || !currentUserId) return;
 
-        const toUser = users.find((u) => u.id === request.toUserId);
+        const currentUser = users.find((u) => u.id === currentUserId);
 
         const notification: Notification = {
           id: `notif_${Date.now()}`,
           type: 'swipe_response',
-          fromUserId: request.toUserId,
-          message: `${toUser?.name} выбрал(а) ${selectedRecipeIds.length} блюд для вас! 🎉`,
+          fromUserId: currentUserId,
+          message: `${currentUser?.name} выбрал(а) ${selectedRecipeIds.length} блюд для вас! 🎉`,
           requestId,
           read: false,
           createdAt: Date.now(),
@@ -650,15 +855,15 @@ export const useStore = create<AppState>()(
         
         // Если нет данных - используем дефолтного пользователя
         return {
-          users: [defaultUser],
-          currentUserId: defaultUser.id,
-          familyProfile: null,
-          swipeRequests: [],
-          notifications: [],
-          customMealTypes: [],
-          deliveryOptions: defaultDeliveryOptions,
-          pendingNotification: null,
-        };
+      users: [defaultUser],
+      currentUserId: defaultUser.id,
+      familyProfile: null,
+      familyJoinRequests: [],
+      swipeRequests: [],
+      notifications: [],
+      customMealTypes: [],
+      deliveryOptions: defaultDeliveryOptions,
+      pendingNotification: null,        };
       },
     }
   )
