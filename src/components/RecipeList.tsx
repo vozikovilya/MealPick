@@ -1,10 +1,8 @@
-import { useState } from 'react';
-import { useStore, useAllMealTypes } from '../store';
-import { Recipe } from '../types';
-import { Clock, Trash2, ChevronDown, ChevronUp, ChevronRight, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import * as api from '../services/api';
+import { Clock, Trash2, ChevronDown, ChevronUp, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getRecipeImage, getRecipeImages, FALLBACK_IMAGE } from '../utils';
-import { RecipeDetail } from './RecipeDetail';
+import type { Recipe } from '../services/api';
 
 type ViewMode = 'list' | 'grid';
 
@@ -13,22 +11,63 @@ interface Props {
   onAddRecipe?: () => void;
 }
 
+// Стандартные категории блюд
+const mealTypes = [
+  { id: 'breakfast', name: 'Завтрак', emoji: '🌅' },
+  { id: 'lunch', name: 'Обед', emoji: '☀️' },
+  { id: 'dinner', name: 'Ужин', emoji: '🌙' },
+  { id: 'sides', name: 'Гарниры', emoji: '🥔' },
+  { id: 'desserts', name: 'Десерты', emoji: '🍰' },
+  { id: 'drinks', name: 'Напитки', emoji: '🥤' },
+  { id: 'sauces', name: 'Соусы', emoji: '🥫' },
+];
+
 export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
-  const { users, currentUserId, deleteRecipe, familyProfile } = useStore();
-  const allMealTypes = useAllMealTypes();
-  const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : null;
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
-  // Получаем все рецепты семьи (если есть семья) или только свои
-  const allFamilyRecipes = familyProfile
-    ? users
-        .filter((u) => familyProfile.memberIds.includes(u.id))
-        .flatMap((u) => u.recipes)
-    : currentUser?.recipes || [];
+  useEffect(() => {
+    loadRecipes();
+  }, []);
 
-  if (allFamilyRecipes.length === 0) {
+  const loadRecipes = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getRecipes();
+      setRecipes(response.data.recipes);
+    } catch (error: any) {
+      console.error('Ошибка загрузки рецептов:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRecipe = async (recipeId: number) => {
+    if (!confirm('Вы уверены, что хотите удалить это блюдо?')) return;
+    
+    try {
+      await api.deleteRecipe(recipeId);
+      await loadRecipes();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка удаления блюда');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Загрузка блюд...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (recipes.length === 0) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">🍽️</div>
@@ -48,10 +87,10 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   // Группируем все категории в единый список
   const allCategories: Record<string, Recipe[]> = {};
   
-  allMealTypes.forEach((mt) => {
-    const recipes = allFamilyRecipes.filter((r) => r.mealType === mt.id);
-    if (recipes.length > 0) {
-      allCategories[mt.id] = recipes;
+  mealTypes.forEach((mt) => {
+    const categoryRecipes = recipes.filter((r) => r.meal_type === mt.id);
+    if (categoryRecipes.length > 0) {
+      allCategories[mt.id] = categoryRecipes;
     }
   });
 
@@ -63,26 +102,6 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
       newCollapsed.add(category);
     }
     setCollapsedCategories(newCollapsed);
-  };
-
-  // Функция для проверки прав на удаление
-  const canDeleteRecipe = (recipe: Recipe): boolean => {
-    if (!currentUserId || !currentUser) return false;
-    
-    const isOwner = recipe.ownerId === currentUserId;
-    const isFamilyHead = familyProfile?.ownerId === currentUserId;
-    const hasChefStatus = currentUser.familyStatus?.title === 'Поварушка';
-    
-    return isOwner || isFamilyHead || hasChefStatus;
-  };
-
-  // Функция для получения информации об авторе
-  const getRecipeAuthor = (recipe: Recipe) => {
-    const author = users.find((u) => u.id === recipe.ownerId);
-    return {
-      name: author?.name,
-      avatar: author?.avatar,
-    };
   };
 
   // Если выбрано блюдо — показываем детали
@@ -101,13 +120,10 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">{familyProfile ? familyProfile.avatar : currentUser?.avatar}</span>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">
-              {familyProfile ? familyProfile.name : 'Моё меню'}
-            </h2>
+            <h2 className="text-lg font-bold text-gray-800">Моё меню</h2>
             <p className="text-sm text-gray-500">
-              {allFamilyRecipes.length} {allFamilyRecipes.length === 1 ? 'блюдо' : allFamilyRecipes.length < 5 ? 'блюда' : 'блюд'}
+              {recipes.length} {recipes.length === 1 ? 'блюдо' : recipes.length < 5 ? 'блюда' : 'блюд'}
             </p>
           </div>
         </div>
@@ -141,8 +157,8 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
       {viewMode === 'list' ? (
         <div className="space-y-4 py-2 px-1">
           {/* Все категории */}
-          {Object.entries(allCategories).map(([type, recipes]) => {
-            const mealType = allMealTypes.find((m) => m.id === type);
+          {Object.entries(allCategories).map(([type, categoryRecipes]) => {
+            const mealType = mealTypes.find((m) => m.id === type);
             return (
               <div key={type}>
                 {/* Collapsible Header */}
@@ -153,7 +169,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                   <h3 className="text-sm font-semibold text-purple-700 flex items-center gap-2">
                     <span className="text-lg">{mealType?.emoji}</span>
                     <span>{mealType?.name}</span>
-                    <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
+                    <span className="text-xs text-purple-400 font-normal">({categoryRecipes.length})</span>
                   </h3>
                   <div className="p-1 rounded-lg bg-purple-50">
                     {collapsedCategories.has(type) ? (
@@ -174,21 +190,15 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       transition={{ duration: 0.2 }}
                       className="space-y-3 py-1"
                     >
-                      {recipes.map((recipe: Recipe, index: number) => {
-                        const author = getRecipeAuthor(recipe);
-                        return (
-                          <RecipeCard
-                            key={recipe.id}
-                            recipe={recipe}
-                            onDelete={(id) => deleteRecipe(id)}
-                            onView={setSelectedRecipe}
-                            index={index}
-                            canDelete={canDeleteRecipe(recipe)}
-                            authorName={author.name}
-                            authorAvatar={author.avatar}
-                          />
-                        );
-                      })}
+                      {categoryRecipes.map((recipe, index) => (
+                        <RecipeCard
+                          key={recipe.id}
+                          recipe={recipe}
+                          onDelete={handleDeleteRecipe}
+                          onView={setSelectedRecipe}
+                          index={index}
+                        />
+                      ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -199,8 +209,8 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
       ) : (
         <div className="space-y-4 px-1">
           {/* Все категории */}
-          {Object.entries(allCategories).map(([type, recipes]) => {
-            const mealType = allMealTypes.find((m) => m.id === type);
+          {Object.entries(allCategories).map(([type, categoryRecipes]) => {
+            const mealType = mealTypes.find((m) => m.id === type);
             return (
               <div key={type}>
                 <button
@@ -210,7 +220,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                   <h3 className="text-sm font-semibold text-purple-700 flex items-center gap-2">
                     <span className="text-lg">{mealType?.emoji}</span>
                     <span>{mealType?.name}</span>
-                    <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
+                    <span className="text-xs text-purple-400 font-normal">({categoryRecipes.length})</span>
                   </h3>
                   <div className="p-1 rounded-lg bg-purple-50">
                     {collapsedCategories.has(type) ? (
@@ -229,21 +239,15 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       transition={{ duration: 0.2 }}
                       className="grid grid-cols-2 gap-3 py-1"
                     >
-                      {recipes.map((recipe: Recipe, index: number) => {
-                        const author = getRecipeAuthor(recipe);
-                        return (
-                          <RecipeGridCard
-                            key={recipe.id}
-                            recipe={recipe}
-                            onDelete={(id) => deleteRecipe(id)}
-                            onView={setSelectedRecipe}
-                            index={index}
-                            canDelete={canDeleteRecipe(recipe)}
-                            authorName={author.name}
-                            authorAvatar={author.avatar}
-                          />
-                        );
-                      })}
+                      {categoryRecipes.map((recipe, index) => (
+                        <RecipeGridCard
+                          key={recipe.id}
+                          recipe={recipe}
+                          onDelete={handleDeleteRecipe}
+                          onView={setSelectedRecipe}
+                          index={index}
+                        />
+                      ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -261,19 +265,13 @@ function RecipeCard({
   onDelete,
   onView,
   index,
-  canDelete,
-  authorName,
-  authorAvatar,
 }: {
   recipe: Recipe;
-  onDelete: (id: string) => void;
+  onDelete: (id: number) => void;
   onView: (recipe: Recipe) => void;
   index: number;
-  canDelete: boolean;
-  authorName?: string;
-  authorAvatar?: string;
 }) {
-  const images = getRecipeImages(recipe);
+  const images = recipe.image_urls || [];
   
   const formatIngredients = () => {
     if (!recipe.ingredients || recipe.ingredients.length === 0) return '0 ингр.';
@@ -293,11 +291,11 @@ function RecipeCard({
           onClick={() => onView(recipe)}
         >
           <img
-            src={getRecipeImage(recipe)}
+            src={images[0] || ''}
             alt={recipe.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+              (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f97316" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="white" font-size="30">🍽️</text></svg>';
             }}
           />
           {images.length > 1 && (
@@ -321,42 +319,25 @@ function RecipeCard({
               >
                 <Eye className="w-4 h-4" />
               </button>
-              {canDelete && (
-                <button
-                  onClick={() => onDelete(recipe.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                onClick={() => onDelete(recipe.id)}
+                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            {authorName && authorAvatar && (
+            {recipe.author_name && recipe.author_avatar && (
               <div className="flex items-center gap-1 text-xs text-gray-400">
-                <span>{authorAvatar}</span>
-                <span>{authorName}</span>
+                <span>{recipe.author_avatar}</span>
+                <span>{recipe.author_name}</span>
               </div>
             )}
             <div className="flex items-center gap-1 text-xs text-gray-400">
               <Clock className="w-3 h-3" />
               <span>{formatIngredients()}</span>
             </div>
-            {recipe.ingredients && recipe.ingredients.length > 0 && (
-              <div className="flex gap-1">
-                {recipe.ingredients.slice(0, 2).map((ing, i) => (
-                  <span
-                    key={i}
-                    className="px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] rounded-full"
-                  >
-                    {ing.name}
-                  </span>
-                ))}
-                {recipe.ingredients.length > 2 && (
-                  <span className="text-[10px] text-gray-400">+{recipe.ingredients.length - 2}</span>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -369,22 +350,17 @@ function RecipeGridCard({
   onDelete,
   onView,
   index,
-  canDelete,
-  authorName,
-  authorAvatar,
 }: {
   recipe: Recipe;
-  onDelete: (id: string) => void;
+  onDelete: (id: number) => void;
   onView: (recipe: Recipe) => void;
   index: number;
-  canDelete: boolean;
-  authorName?: string;
-  authorAvatar?: string;
 }) {
-  const images = getRecipeImages(recipe);
+  const images = recipe.image_urls || [];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const mealType = mealTypes.find((m) => m.id === recipe.meal_type);
 
   const minSwipeDistance = 50;
 
@@ -418,9 +394,6 @@ function RecipeGridCard({
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  const allMealTypes = useAllMealTypes();
-  const mealType = allMealTypes.find((m) => m.id === recipe.mealType);
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -441,12 +414,13 @@ function RecipeGridCard({
           initial={{ opacity: 0.8 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
-          src={images[currentImageIndex] || getRecipeImage(recipe)}
+          src={images[currentImageIndex] || ''}
           alt={recipe.name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+            (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f97316" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="white" font-size="30">🍽️</text></svg>';
           }}
+          loading="lazy"
         />
         
         {/* Swipe buttons */}
@@ -499,17 +473,15 @@ function RecipeGridCard({
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
-          {canDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(recipe.id);
-              }}
-              className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(recipe.id);
+            }}
+            className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
@@ -518,10 +490,10 @@ function RecipeGridCard({
         <h4 className="font-semibold text-gray-800 text-sm truncate">{recipe.name}</h4>
         <p className="text-xs text-gray-500 mt-1 line-clamp-2">{recipe.description}</p>
         <div className="flex items-center justify-between mt-2">
-          {authorName && authorAvatar ? (
+          {recipe.author_name && recipe.author_avatar ? (
             <div className="flex items-center gap-1">
-              <span className="text-xs">{authorAvatar}</span>
-              <span className="text-xs text-gray-400">{authorName}</span>
+              <span className="text-xs">{recipe.author_avatar}</span>
+              <span className="text-xs text-gray-400">{recipe.author_name}</span>
             </div>
           ) : (
             <div className="flex items-center gap-1">
@@ -540,5 +512,163 @@ function RecipeGridCard({
         </div>
       </div>
     </motion.div>
+  );
+}
+
+// Компонент RecipeDetail (упрощенная версия)
+function RecipeDetail({
+  recipe,
+  onBack,
+  onEdit,
+}: {
+  recipe: Recipe;
+  onBack: () => void;
+  onEdit?: () => void;
+}) {
+  const images = recipe.image_urls || [];
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  return (
+    <div className="space-y-0">
+      {/* Image Gallery */}
+      <div className="relative aspect-[4/3] overflow-hidden -mt-6">
+        <img
+          src={images[currentImageIndex] || ''}
+          alt={recipe.name}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f97316" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="white" font-size="30">🍽️</text></svg>';
+          }}
+        />
+
+        {/* Back button */}
+        <button
+          onClick={onBack}
+          className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+        >
+          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Edit button */}
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+          >
+            <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+        )}
+
+        {/* Image navigation */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={() => setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setCurrentImageIndex((prev) => (prev + 1) % images.length)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {images.map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === currentImageIndex ? 'bg-white scale-125' : 'bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="px-4 py-5 space-y-5">
+        {/* Title & Description */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">{recipe.name}</h1>
+          {recipe.description && (
+            <p className="text-gray-500 mt-2">{recipe.description}</p>
+          )}
+        </div>
+
+        {/* Ingredients */}
+        {recipe.ingredients && recipe.ingredients.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <span className="text-lg">🥘</span> Ингредиенты
+              <span className="text-xs text-gray-400 font-normal">({recipe.ingredients.length})</span>
+            </h3>
+            <div className="bg-orange-50/50 rounded-2xl px-4 py-2 border border-orange-100">
+              <div className="divide-y divide-orange-100">
+                {recipe.ingredients.map((ing) => (
+                  <div key={ing.id || ing.name} className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-800">{ing.name}</span>
+                    <span className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                      {ing.amount && ing.unit ? `${ing.amount} ${ing.unit}` : ing.amount || 'по вкусу'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cooking Steps */}
+        {recipe.cooking_steps && recipe.cooking_steps.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <span className="text-lg">👨‍🍳</span> Способ приготовления
+            </h3>
+            <div className="space-y-3">
+              {recipe.cooking_steps.map((step, index) => (
+                <div key={step.id || index} className="flex gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-400 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
+                      {index + 1}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-800">{step.title}</p>
+                    <p className="text-sm text-gray-600 leading-relaxed mt-1">{step.text}</p>
+                    {step.imageUrl && (
+                      <img
+                        src={step.imageUrl}
+                        alt={step.title}
+                        className="mt-2 w-full h-32 object-cover rounded-xl"
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Meta info */}
+        <div className="pt-3 border-t border-gray-100">
+          <div className="flex items-center gap-4 text-xs text-gray-400">
+            <div className="flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Добавлено {new Date(recipe.created_at).toLocaleDateString('ru-RU')}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

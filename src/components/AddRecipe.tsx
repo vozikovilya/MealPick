@@ -1,34 +1,37 @@
 import { useState, useRef, useEffect } from 'react';
-import { useStore, useAllMealTypes, useCollectionMealTypes } from '../store';
-import { Ingredient, CookingStep, Recipe } from '../types';
+import * as api from '../services/api';
+import type { Ingredient, CookingStep, Recipe } from '../services/api';
 import { ArrowLeft, Plus, X, Image as ImageIcon, Upload, Trash2, Link2, ChefHat, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getRecipeImage, getRecipeImages } from '../utils';
 
 interface Props {
   onDone: () => void;
   editRecipe?: Recipe | null;
 }
 
+// Стандартные категории блюд
+const mealTypes = [
+  { id: 'breakfast', name: 'Завтрак', emoji: '🌅' },
+  { id: 'lunch', name: 'Обед', emoji: '☀️' },
+  { id: 'dinner', name: 'Ужин', emoji: '🌙' },
+  { id: 'sides', name: 'Гарниры', emoji: '🥔' },
+  { id: 'desserts', name: 'Десерты', emoji: '🍰' },
+  { id: 'drinks', name: 'Напитки', emoji: '🥤' },
+  { id: 'sauces', name: 'Соусы', emoji: '🥫' },
+];
+
 export function AddRecipe({ onDone, editRecipe }: Props) {
-  const { addRecipe, updateRecipe, users, currentUserId } = useStore();
-  const allMealTypes = useAllMealTypes();
-  const collectionMealTypes = useCollectionMealTypes();
-  const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : null;
-  
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrls, setImageUrls] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
-  const [mealType, setMealType] = useState(allMealTypes[0]?.id || 'breakfast');
+  const [mealType, setMealType] = useState(mealTypes[0]?.id || 'breakfast');
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [cookingSteps, setCookingSteps] = useState<CookingStep[]>([]);
-  const [pairedRecipeIds, setPairedRecipeIds] = useState<string[]>([]);
   const [showMealTypeInput, setShowMealTypeInput] = useState(false);
   const [newMealTypeName, setNewMealTypeName] = useState('');
   const [newMealTypeEmoji, setNewMealTypeEmoji] = useState('🍽️');
-  const [newMealTypeCollection, setNewMealTypeCollection] = useState(false);
 
   // Ingredient form
   const [ingName, setIngName] = useState('');
@@ -48,13 +51,12 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
   useEffect(() => {
     if (editRecipe) {
       setName(editRecipe.name);
-      setDescription(editRecipe.description);
-      setImageUrls(editRecipe.imageUrls.length > 0 ? editRecipe.imageUrls : ['']);
-      setVideoUrl(editRecipe.videoUrl || '');
-      setMealType(editRecipe.mealType);
+      setDescription(editRecipe.description || '');
+      setImageUrls(editRecipe.image_urls?.length > 0 ? editRecipe.image_urls : ['']);
+      setVideoUrl(editRecipe.video_url || '');
+      setMealType(editRecipe.meal_type);
       setIngredients(editRecipe.ingredients || []);
-      setCookingSteps(editRecipe.cookingSteps || []);
-      setPairedRecipeIds(editRecipe.pairedRecipeIds || []);
+      setCookingSteps(editRecipe.cooking_steps || []);
     }
   }, [editRecipe]);
 
@@ -141,42 +143,32 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
     setImageUrls(newUrls);
   };
 
-  const handleAddCustomMealType = () => {
-    if (!newMealTypeName.trim()) return;
-    const { addCustomMealType } = useStore.getState();
-    addCustomMealType(newMealTypeName.trim(), newMealTypeEmoji, newMealTypeCollection);
-    setNewMealTypeName('');
-    setNewMealTypeEmoji('🍽️');
-    setNewMealTypeCollection(false);
-    setShowMealTypeInput(false);
-  };
-
-  const togglePairedRecipe = (recipeId: string) => {
-    setPairedRecipeIds((prev) =>
-      prev.includes(recipeId) ? prev.filter((id) => id !== recipeId) : [...prev, recipeId]
-    );
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) return;
+    
     const validUrls = imageUrls.filter((url) => url.trim());
     const recipeData = {
       name: name.trim(),
       description: description.trim(),
-      imageUrls: validUrls.length > 0 ? validUrls : ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'],
-      videoUrl: videoUrl.trim() || undefined,
+      image_urls: validUrls.length > 0 ? validUrls : ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'],
+      video_url: videoUrl.trim() || undefined,
       ingredients,
-      mealType,
-      cookingSteps: cookingSteps.length > 0 ? cookingSteps : undefined,
-      pairedRecipeIds: pairedRecipeIds.length > 0 ? pairedRecipeIds : undefined,
+      meal_type: mealType,
+      cooking_steps: cookingSteps.length > 0 ? cookingSteps : undefined,
     };
 
-    if (editRecipe) {
-      updateRecipe(editRecipe.id, recipeData);
-    } else {
-      addRecipe(recipeData);
+    try {
+      if (editRecipe) {
+        // Обновление существующего рецепта
+        await api.updateRecipe(editRecipe.id, recipeData);
+      } else {
+        // Создание нового рецепта
+        await api.createRecipe(recipeData);
+      }
+      onDone();
+    } catch (error: any) {
+      alert('Ошибка при сохранении блюда: ' + error.message);
     }
-    onDone();
   };
 
   const formatIngredient = (ing: Ingredient) => {
@@ -184,11 +176,6 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
     if (ing.amount) return `${ing.name} — ${ing.amount}`;
     return ing.name;
   };
-
-  // Получаем блюда из подборок для pairing
-  const collectionRecipes = collectionMealTypes.flatMap((mt) =>
-    (currentUser?.recipes || []).filter((r) => r.mealType === mt.id)
-  );
 
   return (
     <div className="space-y-6">
@@ -326,7 +313,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
         
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            {allMealTypes.map((option) => (
+            {mealTypes.map((option) => (
               <button
                 key={option.id}
                 onClick={() => setMealType(option.id)}
@@ -339,103 +326,6 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
                 {option.emoji} {option.name}
               </button>
             ))}
-          </div>
-          
-          <button
-            onClick={() => setShowMealTypeInput(!showMealTypeInput)}
-            className="w-full py-2 text-sm text-orange-600 hover:text-orange-700 flex items-center justify-center gap-1"
-          >
-            {showMealTypeInput ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            Добавить свою категорию
-          </button>
-          
-          <AnimatePresence>
-            {showMealTypeInput && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="p-3 bg-orange-50 rounded-xl space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newMealTypeEmoji}
-                      onChange={(e) => setNewMealTypeEmoji(e.target.value)}
-                      className="w-16 px-3 py-2 rounded-lg border border-orange-200 text-center text-lg"
-                      maxLength={2}
-                    />
-                    <input
-                      type="text"
-                      value={newMealTypeName}
-                      onChange={(e) => setNewMealTypeName(e.target.value)}
-                      placeholder="Название"
-                      className="flex-1 px-3 py-2 rounded-lg border border-orange-200 text-sm"
-                    />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-600">
-                    <input
-                      type="checkbox"
-                      checked={newMealTypeCollection}
-                      onChange={(e) => setNewMealTypeCollection(e.target.checked)}
-                      className="rounded text-orange-500"
-                    />
-                    Это подборка (как гарниры, десерты)
-                  </label>
-                  <button
-                    onClick={handleAddCustomMealType}
-                    className="w-full py-2 bg-orange-500 text-white rounded-lg text-sm font-medium"
-                  >
-                    Добавить
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Paired Recipes */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-600 flex items-center gap-2">
-              <ChefHat className="w-3 h-3" /> Подать с...
-              <span className="text-[10px] text-gray-400 font-normal">(из подборок)</span>
-            </label>
-            {collectionRecipes.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                {collectionRecipes.map((recipe) => {
-                  const mt = collectionMealTypes.find((m) => m.id === recipe.mealType);
-                  const isSelected = pairedRecipeIds.includes(recipe.id);
-                  return (
-                    <button
-                      key={recipe.id}
-                      onClick={() => togglePairedRecipe(recipe.id)}
-                      className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${
-                        isSelected
-                          ? 'border-orange-400 bg-orange-50'
-                          : 'border-gray-100 hover:border-gray-200'
-                      }`}
-                    >
-                      <img
-                        src={getRecipeImage(recipe)}
-                        alt={recipe.name}
-                        className="w-8 h-8 rounded object-cover flex-shrink-0"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-gray-800 truncate">{recipe.name}</p>
-                        <p className="text-[9px] text-gray-500">{mt?.emoji} {mt?.name}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-3 bg-gray-50 rounded-lg text-center">
-                <p className="text-xs text-gray-500">Нет блюд в подборках</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -512,7 +402,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
                   className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-sm"
                 >
                   {formatIngredient(ing)}
-                  <button onClick={() => handleRemoveIngredient(ing.id)} className="hover:text-red-500">
+                  <button onClick={() => handleRemoveIngredient(ing.id!)} className="hover:text-red-500">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </span>
@@ -555,7 +445,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
                     )}
                   </div>
                   <button
-                    onClick={() => handleRemoveStep(s.id)}
+                    onClick={() => handleRemoveStep(s.id!)}
                     className="flex-shrink-0 p-1 text-red-400 hover:text-red-600"
                   >
                     <X className="w-3.5 h-3.5" />

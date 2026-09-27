@@ -304,6 +304,22 @@ export async function createRecipe(data: {
   });
 }
 
+export async function updateRecipe(recipeId: number, data: {
+  name?: string;
+  description?: string;
+  image_urls?: string[];
+  video_url?: string;
+  meal_type?: string;
+  ingredients?: Ingredient[];
+  cooking_steps?: CookingStep[];
+  paired_recipe_ids?: number[];
+}): Promise<any> {
+  return apiRequest('/recipes/update.php', {
+    method: 'PUT',
+    body: JSON.stringify({ recipe_id: recipeId, ...data }),
+  });
+}
+
 export async function deleteRecipe(recipeId: number): Promise<any> {
   return apiRequest('/recipes/delete.php', {
     method: 'DELETE',

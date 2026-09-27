@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from './store';
 import * as api from './services/api';
-import { Recipe } from './types';
+import type { Recipe } from './services/api';
 import { RecipeList } from './components/RecipeList';
 import { AddRecipe } from './components/AddRecipe';
 import { SendRequest } from './components/SendRequest';
