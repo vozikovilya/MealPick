@@ -301,19 +301,49 @@ export const useStore = create<AppState>()(
         set({
           users: [...users, newUser],
           currentUserId: newUser.id,
+          // Очищаем данные предыдущего пользователя
+          familyProfile: null,
+          familyJoinRequests: [],
+          notifications: [],
+          swipeRequests: [],
+          pendingNotification: null,
         });
         return { success: true, message: 'Регистрация успешна!' };
       },
 
       login: (emailOrUsername, password) => {
-        const { users } = get();
+        const { users, familyProfile, notifications, swipeRequests } = get();
         const user = users.find(
           u => (u.email === emailOrUsername || u.username === emailOrUsername) && u.password === password
         );
         if (!user) {
           return { success: false, message: 'Неверный email/логин или пароль' };
         }
-        set({ currentUserId: user.id });
+        
+        // Проверяем, принадлежит ли семья этому пользователю
+        const userFamily = familyProfile && familyProfile.memberIds.includes(user.id) 
+          ? familyProfile 
+          : null;
+        
+        // Фильтруем уведомления и запросы для текущего пользователя
+        const userNotifications = userFamily 
+          ? notifications.filter((n: any) => 
+              n.fromUserId === user.id || 
+              (userFamily && userFamily.memberIds.includes(n.fromUserId))
+            )
+          : notifications.filter((n: any) => n.fromUserId === user.id);
+        
+        const userSwipeRequests = swipeRequests.filter((r: any) => 
+          r.fromUserId === user.id || r.toUserId === user.id
+        );
+        
+        set({ 
+          currentUserId: user.id,
+          familyProfile: userFamily,
+          notifications: userNotifications,
+          swipeRequests: userSwipeRequests,
+          pendingNotification: null,
+        });
         return { success: true, message: 'Вход выполнен!' };
       },
 

@@ -187,68 +187,71 @@ function PersonalProfile({
         <h2 className="text-xl font-bold text-gray-800">Личный профиль</h2>
       </div>
 
-      {/* Avatar */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Аватар</label>
-        <div className="flex gap-2 flex-wrap">
-          {avatars.map((a) => (
-            <button
-              key={a}
-              onClick={() => setAvatar(a)}
-              className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
-                avatar === a ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              {a}
-            </button>
-          ))}
+      {/* Основная информация */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+        {/* Avatar */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Аватар</label>
+          <div className="flex gap-2 flex-wrap">
+            {avatars.map((a) => (
+              <button
+                key={a}
+                onClick={() => setAvatar(a)}
+                className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                  avatar === a ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Name */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Имя</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+          />
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">О себе</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Расскажите о себе..."
+            rows={3}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
+          />
+        </div>
+
+        {/* Save Profile */}
+        <button
+          onClick={handleSave}
+          className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
+        >
+          {saved ? (
+            <>
+              <Check className="w-5 h-5" />
+              Сохранено!
+            </>
+          ) : (
+            <>
+              <Edit2 className="w-5 h-5" />
+              Сохранить изменения
+            </>
+          )}
+        </button>
       </div>
 
-      {/* Name */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Имя</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
-        />
-      </div>
-
-      {/* Description */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">О себе</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Расскажите о себе..."
-          rows={3}
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
-        />
-      </div>
-
-      {/* Save Profile */}
-      <button
-        onClick={handleSave}
-        className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
-      >
-        {saved ? (
-          <>
-            <Check className="w-5 h-5" />
-            Сохранено!
-          </>
-        ) : (
-          <>
-            <Edit2 className="w-5 h-5" />
-            Сохранить изменения
-          </>
-        )}
-      </button>
-
-      {/* Credentials Section */}
-      <div className="pt-4 border-t border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Данные для входа</h3>
+      {/* Данные для входа */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800">Данные для входа</h3>
         
         <div className="space-y-3">
           <div className="space-y-2">
@@ -313,10 +316,10 @@ function PersonalProfile({
         </div>
       </div>
 
-      {/* Delete Account Section */}
-      <div className="pt-4 border-t border-gray-200">
+      {/* Удаление аккаунта */}
+      <div className="bg-white rounded-2xl border border-red-200 p-5 space-y-4">
         {isFamilyOwner && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl mb-3">
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
             <p className="text-sm text-yellow-800">
               ⚠️ Вы являетесь создателем профиля семьи. Сначала удалите профиль семьи или передайте права другому участнику.
             </p>
