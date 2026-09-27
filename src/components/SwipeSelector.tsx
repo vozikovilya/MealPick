@@ -6,7 +6,7 @@ import { X, Heart, Check, ArrowLeft, Send, Info } from 'lucide-react';
 import { getRecipeImage, FALLBACK_IMAGE } from '../utils';
 
 interface Props {
-  requestId: string;
+  requestId: number;
   onDone: () => void;
 }
 

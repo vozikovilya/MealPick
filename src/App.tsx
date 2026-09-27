@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useStore } from './store';
 import * as api from './services/api';
 import type { Recipe } from './services/api';
 import { RecipeList } from './components/RecipeList';
@@ -8,7 +7,6 @@ import { SendRequest } from './components/SendRequest';
 import { SwipeSelector } from './components/SwipeSelector';
 import { Notifications } from './components/Notifications';
 import { SelectedResults } from './components/SelectedResults';
-import { PendingNotificationModal } from './components/PendingNotificationModal';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
@@ -17,12 +15,12 @@ type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 
 
 function App() {
   const [screen, setScreen] = useState<Screen>('recipes');
-  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [profileKey, setProfileKey] = useState(0); // Для сброса состояния ProfileScreen
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const { notifications, pendingNotification, setPendingNotification } = useStore();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Проверка авторизации при загрузке
   useEffect(() => {
@@ -32,6 +30,13 @@ function App() {
           const profile = await api.getProfile();
           setCurrentUser(profile.data.user);
           setIsAuthenticated(true);
+          
+          // Загружаем уведомления для подсчета непрочитанных
+          const notifResponse = await api.getNotifications();
+          const count = notifResponse.data.notifications.filter(
+            (n) => !n.is_read && n.type === 'swipe_request'
+          ).length;
+          setUnreadCount(count);
         } catch (error) {
           // Токен недействителен
           api.logout();
@@ -41,8 +46,6 @@ function App() {
     };
     checkAuth();
   }, []);
-
-  const unreadCount = notifications.filter((n) => !n.read && n.type === 'swipe_request').length;
 
   // Если не авторизован - показываем экран авторизации
   if (!isAuthenticated || !currentUser) {
@@ -58,12 +61,12 @@ function App() {
     }} />;
   }
 
-  const handleOpenSwipe = (requestId: string) => {
+  const handleOpenSwipe = (requestId: number) => {
     setActiveRequestId(requestId);
     setScreen('swipe');
   };
 
-  const handleViewResults = (requestId: string) => {
+  const handleViewResults = (requestId: number) => {
     setActiveRequestId(requestId);
     setScreen('results');
   };
@@ -205,26 +208,6 @@ function App() {
           />
         </div>
       </nav>
-
-      {/* Полноэкранное модальное уведомление */}
-      {pendingNotification && (
-        <PendingNotificationModal
-          notification={pendingNotification}
-          onClose={() => setPendingNotification(null)}
-          onAction={() => {
-            const notif = pendingNotification;
-            setPendingNotification(null);
-            if (notif.type === 'swipe_request' && notif.requestId) {
-              handleOpenSwipe(notif.requestId);
-            } else if (notif.type === 'swipe_response' && notif.requestId) {
-              handleViewResults(notif.requestId);
-            } else if (notif.type === 'family_join_request' || notif.type === 'family_join_response') {
-              // Для семейных уведомлений переходим в профиль
-              setScreen('profile');
-            }
-          }}
-        />
-      )}
     </div>
   );
 }
