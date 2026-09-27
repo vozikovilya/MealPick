@@ -351,8 +351,9 @@ export const useStore = create<AppState>()(
       logout: () => {
         set({ 
           currentUserId: null,
-          familyProfile: null,
           pendingNotification: null,
+          // familyProfile НЕ обнуляем - она должна сохраняться в localStorage
+          // При следующем входе пользователя login() проверит, является ли он членом семьи
         });
       },
 
@@ -872,7 +873,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'meal-picker-storage',
-      version: 7,
+      version: 8,
       migrate: (persistedState: any) => {
         // Если есть сохраненные данные - используем их, не перезаписываем
         if (persistedState?.users && persistedState.users.length > 0) {
@@ -880,6 +881,7 @@ export const useStore = create<AppState>()(
             users: persistedState.users,
             currentUserId: persistedState.currentUserId || null,
             familyProfile: persistedState.familyProfile || null,
+            familyJoinRequests: persistedState.familyJoinRequests || [],
             swipeRequests: persistedState.swipeRequests || [],
             notifications: persistedState.notifications || [],
             customMealTypes: persistedState.customMealTypes || [],
@@ -890,15 +892,16 @@ export const useStore = create<AppState>()(
         
         // Если нет данных - используем дефолтного пользователя
         return {
-      users: [defaultUser],
-      currentUserId: defaultUser.id,
-      familyProfile: null,
-      familyJoinRequests: [],
-      swipeRequests: [],
-      notifications: [],
-      customMealTypes: [],
-      deliveryOptions: defaultDeliveryOptions,
-      pendingNotification: null,        };
+          users: [defaultUser],
+          currentUserId: defaultUser.id,
+          familyProfile: null,
+          familyJoinRequests: [],
+          swipeRequests: [],
+          notifications: [],
+          customMealTypes: [],
+          deliveryOptions: defaultDeliveryOptions,
+          pendingNotification: null,
+        };
       },
     }
   )
