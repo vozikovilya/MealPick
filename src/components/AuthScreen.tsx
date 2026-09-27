@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useStore } from '../store';
 import { ChefHat, Mail, Lock, User, AtSign } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 type AuthMode = 'login' | 'register';
 
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function AuthScreen({ onAuth }: Props) {
-  const { login, register, users, currentUserId } = useStore();
+  const { login, register } = useStore();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -18,19 +18,6 @@ export function AuthScreen({ onAuth }: Props) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
-
-  // Автоматический вход для демо-пользователя при первом запуске
-  useEffect(() => {
-    if (!currentUserId && users.length > 0) {
-      const demoUser = users.find(u => u.email === 'vozikov-ilya@mail.ru');
-      if (demoUser) {
-        const result = login(demoUser.email, demoUser.password);
-        if (result.success) {
-          onAuth();
-        }
-      }
-    }
-  }, [currentUserId, users]);
 
   const handleDemoLogin = () => {
     const result = login('vozikov-ilya@mail.ru', 'ilya');
@@ -130,29 +117,63 @@ export function AuthScreen({ onAuth }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 via-white to-amber-50">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-50 via-white to-amber-50">
+      {/* Логотип и название компании */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center mb-8"
+      >
+        <div className="inline-flex items-center gap-3 mb-3">
+          <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <ChefHat className="w-10 h-10 text-white" />
+          </div>
+        </div>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent mb-2">
+          MealPick
+        </h1>
+        <p className="text-gray-600 text-sm">Выбираем блюда вместе</p>
+      </motion.div>
+
+      {/* Плашка с табами */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
         className="w-full max-w-md"
       >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <ChefHat className="w-10 h-10 text-orange-500" />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
-              MealPick
-            </h1>
-          </div>
-          <p className="text-gray-600">Выбираем блюда вместе</p>
+        {/* Табы */}
+        <div className="flex gap-2 mb-6 bg-gray-100 p-1.5 rounded-2xl">
+          <button
+            onClick={() => {
+              setMode('login');
+              setError('');
+            }}
+            className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+              mode === 'login'
+                ? 'bg-white text-orange-500 shadow-md'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Войти
+          </button>
+          <button
+            onClick={() => {
+              setMode('register');
+              setError('');
+            }}
+            className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+              mode === 'register'
+                ? 'bg-white text-orange-500 shadow-md'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Регистрация
+          </button>
         </div>
 
-        {/* Form */}
-        <div className="bg-white rounded-3xl shadow-xl p-6 space-y-4">
-          <h2 className="text-xl font-bold text-gray-800 text-center">
-            {mode === 'login' ? 'Вход в аккаунт' : 'Регистрация'}
-          </h2>
-
+        {/* Форма */}
+        <div className="bg-white rounded-3xl shadow-xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-2">
@@ -228,21 +249,9 @@ export function AuthScreen({ onAuth }: Props) {
             </button>
           </form>
 
-          <div className="text-center">
-            <button
-              onClick={() => {
-                setMode(mode === 'login' ? 'register' : 'login');
-                setError('');
-              }}
-              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-            >
-              {mode === 'login' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
-            </button>
-          </div>
-
-          {/* Demo credentials */}
+          {/* Демо-доступ */}
           {mode === 'login' && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
               <p className="text-xs text-blue-700 font-medium mb-2">Демо-доступ:</p>
               <p className="text-xs text-blue-600 mb-2">Email: vozikov-ilya@mail.ru</p>
               <p className="text-xs text-blue-600 mb-3">Пароль: ilya</p>
