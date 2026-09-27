@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore } from '../store';
+import * as api from '../services/api';
 import { ChefHat, Mail, Lock, User, AtSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -10,7 +10,6 @@ interface Props {
 }
 
 export function AuthScreen({ onAuth }: Props) {
-  const { login, register } = useStore();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [loginInput, setLoginInput] = useState(''); // Для входа: email или username
@@ -20,47 +19,53 @@ export function AuthScreen({ onAuth }: Props) {
   const [avatar, setAvatar] = useState('👤');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const avatars = ['👨‍🍳', '👩‍🍳', '🧑‍🍳', '👨', '👩', '🧑', '👦', '👧', '🧒', '👤', '🦸‍♂️', '🦸‍♀️', '🧙‍♂️', '🧙‍♀️', '🎅', '🤶'];
 
-  const handleDemoLogin = () => {
-    const result = login('vozikov-ilya@mail.ru', 'ilya');
-    if (result.success) {
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      await api.login({ login: 'test@example.com', password: 'test123' });
       onAuth();
-    } else {
-      setError(result.message);
+    } catch (err: any) {
+      setError(err.message || 'Ошибка входа');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    if (mode === 'login') {
-      if (!loginInput || !password) {
-        setError('Заполните все поля');
-        return;
-      }
-      const result = login(loginInput, password);
-      if (result.success) {
+    try {
+      if (mode === 'login') {
+        if (!loginInput || !password) {
+          setError('Заполните все поля');
+          setIsLoading(false);
+          return;
+        }
+        await api.login({ login: loginInput, password });
         onAuth();
       } else {
-        setError(result.message);
-      }
-    } else {
-      if (!email || !username || !password || !name) {
-        setError('Заполните все поля');
-        return;
-      }
-      const result = register(email, username, password, name, avatar);
-      if (result.success) {
+        if (!email || !username || !password || !name) {
+          setError('Заполните все поля');
+          setIsLoading(false);
+          return;
+        }
+        await api.register({ email, username, password, name, avatar });
         setShowSuccess(true);
         setTimeout(() => {
           onAuth();
         }, 2000);
-      } else {
-        setError(result.message);
       }
+    } catch (err: any) {
+      setError(err.message || 'Произошла ошибка');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -290,9 +295,10 @@ export function AuthScreen({ onAuth }: Props) {
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all"
+              disabled={isLoading}
+              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+              {isLoading ? 'Загрузка...' : (mode === 'login' ? 'Войти' : 'Зарегистрироваться')}
             </button>
           </form>
 
@@ -300,15 +306,15 @@ export function AuthScreen({ onAuth }: Props) {
           {mode === 'login' && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
               <p className="text-xs text-blue-700 font-medium mb-2">Демо-доступ:</p>
-              <p className="text-xs text-blue-600 mb-1">Email: vozikov-ilya@mail.ru</p>
-              <p className="text-xs text-blue-600 mb-1">Логин: ilya</p>
-              <p className="text-xs text-blue-600 mb-3">Пароль: ilya</p>
+              <p className="text-xs text-blue-600 mb-1">Email: test@example.com</p>
+              <p className="text-xs text-blue-600 mb-3">Пароль: test123</p>
               <button
                 type="button"
                 onClick={handleDemoLogin}
-                className="w-full py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors"
+                disabled={isLoading}
+                className="w-full py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Войти как Илья
+                {isLoading ? 'Загрузка...' : 'Войти как тестовый пользователь'}
               </button>
             </div>
           )}

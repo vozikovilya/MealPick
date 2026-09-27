@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from './store';
+import * as api from './services/api';
 import { Recipe } from './types';
 import { RecipeList } from './components/RecipeList';
 import { AddRecipe } from './components/AddRecipe';
@@ -19,14 +20,42 @@ function App() {
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [profileKey, setProfileKey] = useState(0); // Для сброса состояния ProfileScreen
-  const { notifications, currentUserId, pendingNotification, setPendingNotification, users } = useStore();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { notifications, pendingNotification, setPendingNotification } = useStore();
+
+  // Проверка авторизации при загрузке
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (api.isAuthenticated()) {
+        try {
+          const profile = await api.getProfile();
+          setCurrentUser(profile.data.user);
+          setIsAuthenticated(true);
+        } catch (error) {
+          // Токен недействителен
+          api.logout();
+          setIsAuthenticated(false);
+        }
+      }
+    };
+    checkAuth();
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read && n.type === 'swipe_request').length;
-  const currentUser = users.find(u => u.id === currentUserId);
 
   // Если не авторизован - показываем экран авторизации
-  if (!currentUserId || !currentUser) {
-    return <AuthScreen onAuth={() => setScreen('recipes')} />;
+  if (!isAuthenticated || !currentUser) {
+    return <AuthScreen onAuth={async () => {
+      try {
+        const profile = await api.getProfile();
+        setCurrentUser(profile.data.user);
+        setIsAuthenticated(true);
+        setScreen('recipes');
+      } catch (error) {
+        console.error('Ошибка загрузки профиля:', error);
+      }
+    }} />;
   }
 
   const handleOpenSwipe = (requestId: string) => {
@@ -40,6 +69,9 @@ function App() {
   };
 
   const handleLogout = () => {
+    api.logout();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
     setScreen('recipes');
   };
 
