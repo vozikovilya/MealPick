@@ -301,11 +301,9 @@ export const useStore = create<AppState>()(
         set({
           users: [...users, newUser],
           currentUserId: newUser.id,
-          // Очищаем данные предыдущего пользователя для нового
-          familyProfile: null,
-          familyJoinRequests: [],
-          notifications: [],
-          swipeRequests: [],
+          // НЕ обнуляем familyProfile - она должна сохраняться для всех пользователей
+          // familyProfile, notifications и т.д. остаются в localStorage
+          // При входе login() проверит, является ли новый пользователь членом семьи
           pendingNotification: null,
         });
         return { success: true, message: 'Регистрация успешна!' };
