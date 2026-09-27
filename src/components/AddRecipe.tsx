@@ -34,6 +34,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
   const [ingName, setIngName] = useState('');
   const [ingAmount, setIngAmount] = useState('');
   const [ingUnit, setIngUnit] = useState('');
+  const [ingToTaste, setIngToTaste] = useState(false);
 
   // Step form
   const [stepTitle, setStepTitle] = useState('');
@@ -62,13 +63,14 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
     const newIng: Ingredient = {
       id: `ing_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: ingName.trim(),
-      amount: ingAmount.trim() || undefined,
-      unit: ingUnit.trim() || undefined,
+      amount: ingToTaste ? 'по вкусу' : ingAmount.trim() || undefined,
+      unit: ingToTaste ? undefined : ingUnit.trim() || undefined,
     };
     setIngredients([...ingredients, newIng]);
     setIngName('');
     setIngAmount('');
     setIngUnit('');
+    setIngToTaste(false);
   };
 
   const handleRemoveIngredient = (id: string) => {
@@ -84,7 +86,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
       imageUrl: stepImageUrl.trim() || undefined,
     };
     setCookingSteps([...cookingSteps, newStep]);
-    setStepTitle('');
+    setStepTitle(`Шаг ${cookingSteps.length + 2}`);
     setStepText('');
     setStepImageUrl('');
   };
@@ -448,7 +450,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
         </div>
         
         <div className="space-y-3 pl-10">
-          <div className="p-3 bg-gray-50 rounded-xl space-y-2">
+          <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
             <input
               type="text"
               value={ingName}
@@ -457,23 +459,42 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
               placeholder="Продукт (например: Куриная грудка)"
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
             />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                value={ingAmount}
-                onChange={(e) => setIngAmount(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
-                placeholder="Кол-во"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
-              <input
-                type="text"
-                value={ingUnit}
-                onChange={(e) => setIngUnit(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
-                placeholder="Ед. (г, шт, ст.л.)"
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-              />
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={ingAmount}
+                  onChange={(e) => setIngAmount(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
+                  placeholder="Кол-во"
+                  disabled={ingToTaste}
+                  className="px-3 py-2 rounded-lg border border-gray-200 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+                />
+                <input
+                  type="text"
+                  value={ingUnit}
+                  onChange={(e) => setIngUnit(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddIngredient()}
+                  placeholder="Ед. (г, шт, ст.л.)"
+                  disabled={ingToTaste}
+                  className="px-3 py-2 rounded-lg border border-gray-200 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={ingToTaste}
+                  onChange={(e) => {
+                    setIngToTaste(e.target.checked);
+                    if (e.target.checked) {
+                      setIngAmount('');
+                      setIngUnit('');
+                    }
+                  }}
+                  className="rounded text-orange-500"
+                />
+                <span>По вкусу</span>
+              </label>
             </div>
             <button
               onClick={handleAddIngredient}
@@ -544,12 +565,12 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
             </div>
           )}
 
-          <div className="p-3 bg-gray-50 rounded-xl space-y-2">
+          <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-2">
             <input
               type="text"
               value={stepTitle}
               onChange={(e) => setStepTitle(e.target.value)}
-              placeholder={`Название шага (напр. "Подготовка")`}
+              placeholder={`Шаг ${cookingSteps.length + 1}`}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium"
             />
             <textarea
