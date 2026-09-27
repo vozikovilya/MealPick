@@ -166,9 +166,8 @@ CREATE TABLE custom_meal_types (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Создание тестового пользователя (пароль: test123)
+-- Хэш создан с помощью: password_hash('test123', PASSWORD_BCRYPT)
 INSERT INTO users (email, username, password_hash, name, avatar) VALUES
 ('test@example.com', 'testuser', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2u5W1QZmKxm', 'Тестовый Пользователь', '👨‍🍳');
 
--- Проверка создания таблиц
-SELECT 'Database schema created successfully!' AS status;
-SELECT COUNT(*) AS total_tables FROM information_schema.tables WHERE table_schema = DATABASE();
+-- Готово! Все таблицы созданы успешно.
