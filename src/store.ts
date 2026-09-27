@@ -301,14 +301,18 @@ export const useStore = create<AppState>()(
         set({
           users: [...users, newUser],
           currentUserId: newUser.id,
-          // НЕ очищаем глобальные данные - они сохраняются для всех пользователей
-          // familyProfile, notifications и т.д. остаются в localStorage
+          // Очищаем данные предыдущего пользователя для нового
+          familyProfile: null,
+          familyJoinRequests: [],
+          notifications: [],
+          swipeRequests: [],
+          pendingNotification: null,
         });
         return { success: true, message: 'Регистрация успешна!' };
       },
 
       login: (emailOrUsername, password) => {
-        const { users } = get();
+        const { users, familyProfile, notifications, swipeRequests } = get();
         const user = users.find(
           u => (u.email === emailOrUsername || u.username === emailOrUsername) && u.password === password
         );
@@ -316,18 +320,40 @@ export const useStore = create<AppState>()(
           return { success: false, message: 'Неверный email/логин или пароль' };
         }
         
-        // Просто меняем текущего пользователя
-        // Данные НЕ фильтруем и НЕ очищаем - они сохраняются в localStorage
-        // Компоненты сами будут фильтровать данные по currentUserId
+        // Проверяем, принадлежит ли семья этому пользователю
+        const userFamily = familyProfile && familyProfile.memberIds.includes(user.id) 
+          ? familyProfile 
+          : null;
+        
+        // Фильтруем уведомления для текущего пользователя
+        const userNotifications = notifications.filter((n) => 
+          n.fromUserId === user.id || 
+          (userFamily && userFamily.memberIds.includes(n.fromUserId))
+        );
+        
+        // Фильтруем запросы для текущего пользователя
+        const userSwipeRequests = swipeRequests.filter((r) => 
+          r.fromUserId === user.id || 
+          (r.toUserId === user.id) ||
+          (r.toFamilyId && userFamily && r.toFamilyId === userFamily.id)
+        );
+        
         set({ 
           currentUserId: user.id,
+          familyProfile: userFamily,
+          notifications: userNotifications,
+          swipeRequests: userSwipeRequests,
           pendingNotification: null,
         });
         return { success: true, message: 'Вход выполнен!' };
       },
 
       logout: () => {
-        set({ currentUserId: null });
+        set({ 
+          currentUserId: null,
+          familyProfile: null,
+          pendingNotification: null,
+        });
       },
 
       updateProfile: (data) => {
