@@ -81,7 +81,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -119,7 +119,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
 
       {/* Content */}
       {viewMode === 'list' ? (
-        <div className="space-y-4">
+        <div className="space-y-4 py-2">
           {/* Основные типы */}
           {Object.entries(groupedRecipes).map(([type, recipes]) => {
             const mealType = allMealTypes.find((m) => m.id === type);

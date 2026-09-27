@@ -13,7 +13,7 @@ interface AppState {
   pendingNotification: Notification | null;
 
   // Auth
-  register: (email: string, username: string, password: string, name: string) => { success: boolean; message: string };
+  register: (email: string, username: string, password: string, name: string, avatar?: string) => { success: boolean; message: string };
   login: (emailOrUsername: string, password: string) => { success: boolean; message: string };
   logout: () => void;
   updateProfile: (data: { name?: string; avatar?: string; description?: string }) => void;
@@ -274,7 +274,7 @@ export const useStore = create<AppState>()(
       pendingNotification: null,
 
       // Auth
-      register: (email, username, password, name) => {
+      register: (email, username, password, name, avatar = '👤') => {
         const { users } = get();
         if (users.find(u => u.email === email)) {
           return { success: false, message: 'Пользователь с таким email уже существует' };
@@ -288,7 +288,7 @@ export const useStore = create<AppState>()(
           username,
           password,
           name,
-          avatar: '👤',
+          avatar,
           recipes: [],
         };
         set({
