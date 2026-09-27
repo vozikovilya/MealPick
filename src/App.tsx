@@ -176,6 +176,9 @@ function App() {
               handleOpenSwipe(notif.requestId);
             } else if (notif.type === 'swipe_response' && notif.requestId) {
               handleViewResults(notif.requestId);
+            } else if (notif.type === 'family_join_request' || notif.type === 'family_join_response') {
+              // Для семейных уведомлений переходим в профиль
+              setScreen('profile');
             }
           }}
         />

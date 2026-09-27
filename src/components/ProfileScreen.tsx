@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { User, Users, ArrowLeft, Edit2, LogOut, Copy, Check, Trash2, Mail, Lock, AtSign } from 'lucide-react';
+import { User, Users, ArrowLeft, Edit2, LogOut, Copy, Check, Trash2, Mail, Lock, AtSign, Crown, Link, UserPlus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FamilyProfile, FamilyJoinRequest, FamilyStatus } from '../types';
 
 type ProfileView = 'main' | 'personal' | 'family';
 
@@ -12,7 +13,7 @@ interface Props {
 
 export function ProfileScreen({ onBack, onLogout }: Props) {
   const [view, setView] = useState<ProfileView>('main');
-  const { users, currentUserId, familyProfile, createFamilyProfile, updateProfile, updateFamilyProfile, logout, deleteAccount, deleteFamilyProfile, removeFamilyMember } = useStore();
+  const { users, currentUserId, familyProfile, createFamilyProfile, updateProfile, updateFamilyProfile, logout, deleteAccount, deleteFamilyProfile, removeFamilyMember, requestJoinFamily, respondToJoinRequest, addFamilyStatus, removeFamilyStatus, familyJoinRequests } = useStore();
   const currentUser = users.find(u => u.id === currentUserId);
 
   if (!currentUser) return null;
@@ -27,10 +28,15 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
         family={familyProfile}
         currentUser={currentUser}
         users={users}
+        familyJoinRequests={familyJoinRequests}
         onCreate={createFamilyProfile}
         onUpdate={updateFamilyProfile}
         onDelete={deleteFamilyProfile}
         onRemoveMember={removeFamilyMember}
+        onRequestJoin={requestJoinFamily}
+        onRespondToRequest={respondToJoinRequest}
+        onAddStatus={addFamilyStatus}
+        onRemoveStatus={removeFamilyStatus}
         onBack={() => setView('main')}
       />
     );
@@ -47,6 +53,12 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
         <div className="text-5xl mb-3">{currentUser.avatar}</div>
         <h3 className="text-lg font-bold text-gray-800">{currentUser.name}</h3>
         <p className="text-sm text-gray-500">{currentUser.email}</p>
+        {currentUser.familyStatus && (
+          <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+            <span>{currentUser.familyStatus.emoji}</span>
+            <span>{currentUser.familyStatus.title}</span>
+          </div>
+        )}
       </div>
 
       {/* Menu */}
@@ -74,7 +86,7 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
           <div className="flex-1 text-left">
             <h4 className="font-semibold text-gray-800">Профиль семьи</h4>
             <p className="text-xs text-gray-500">
-              {familyProfile ? 'Управление семейным профилем' : 'Создать профиль семьи'}
+              {familyProfile ? 'Управление семейным профилем' : 'Создать или присоединиться к семье'}
             </p>
           </div>
         </button>
@@ -361,19 +373,29 @@ function FamilyProfileView({
   family,
   currentUser,
   users,
+  familyJoinRequests,
   onCreate,
   onUpdate,
   onDelete,
   onRemoveMember,
+  onRequestJoin,
+  onRespondToRequest,
+  onAddStatus,
+  onRemoveStatus,
   onBack,
 }: {
-  family: any;
+  family: FamilyProfile | null;
   currentUser: any;
   users: any[];
+  familyJoinRequests: FamilyJoinRequest[];
   onCreate: (name: string, avatar: string, description?: string) => void;
   onUpdate: (data: any) => void;
   onDelete: () => { success: boolean; message: string };
   onRemoveMember: (memberId: string) => { success: boolean; message: string };
+  onRequestJoin: (inviteLink: string) => { success: boolean; message: string };
+  onRespondToRequest: (requestId: string, accept: boolean) => void;
+  onAddStatus: (userId: string, title: string, emoji: string) => { success: boolean; message: string };
+  onRemoveStatus: (userId: string) => void;
   onBack: () => void;
 }) {
   const [name, setName] = useState(family?.name || '');
@@ -385,8 +407,14 @@ function FamilyProfileView({
   const [deleteError, setDeleteError] = useState('');
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState('');
+  const [joinLink, setJoinLink] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [showStatusModal, setShowStatusModal] = useState<string | null>(null);
+  const [statusTitle, setStatusTitle] = useState('');
+  const [statusEmoji, setStatusEmoji] = useState('');
 
   const familyAvatars = ['👨‍👩‍👧‍👦', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👦', '👩‍👦', '👨‍👧', '👩‍👧', '🏠', '❤️'];
+  const statusEmojis = ['👑', '🎯', '⭐', '🔥', '💪', '🎨', '🎵', '📚', '🌟', '💎'];
 
   const handleCreate = () => {
     if (!name.trim()) return;
@@ -428,7 +456,40 @@ function FamilyProfileView({
     }
   };
 
-  // Если нет семьи - показываем форму создания
+  const handleRequestJoin = () => {
+    if (!joinLink.trim()) return;
+    setJoinError('');
+    const result = onRequestJoin(joinLink.trim());
+    if (result.success) {
+      setJoinLink('');
+      alert('Заявка отправлена!');
+    } else {
+      setJoinError(result.message);
+    }
+  };
+
+  const handleRespondToRequest = (requestId: string, accept: boolean) => {
+    onRespondToRequest(requestId, accept);
+  };
+
+  const handleAddStatus = (userId: string) => {
+    if (!statusTitle.trim() || !statusEmoji) return;
+    const result = onAddStatus(userId, statusTitle, statusEmoji);
+    if (result.success) {
+      setShowStatusModal(null);
+      setStatusTitle('');
+      setStatusEmoji('');
+    } else {
+      alert(result.message);
+    }
+  };
+
+  // Pending requests for family owner
+  const pendingRequests = family
+    ? familyJoinRequests.filter(r => r.familyId === family.id && r.status === 'pending')
+    : [];
+
+  // If no family - show join or create options
   if (!family) {
     return (
       <div className="space-y-5">
@@ -436,60 +497,108 @@ function FamilyProfileView({
           <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <h2 className="text-xl font-bold text-gray-800">Создать профиль семьи</h2>
+          <h2 className="text-xl font-bold text-gray-800">Профиль семьи</h2>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Аватар семьи</label>
-          <div className="flex gap-2 flex-wrap">
-            {familyAvatars.map((a) => (
-              <button
-                key={a}
-                onClick={() => setAvatar(a)}
-                className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
-                  avatar === a ? 'bg-purple-100 ring-2 ring-purple-400' : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                {a}
-              </button>
-            ))}
+        {/* Join Family */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Link className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">Присоединиться к семье</h3>
+              <p className="text-xs text-gray-500">Вставьте ссылку-приглашение</p>
+            </div>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Название семьи</label>
+          
           <input
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Например: Семья Ивановых"
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+            value={joinLink}
+            onChange={(e) => setJoinLink(e.target.value)}
+            placeholder="https://mealspick.app/join/..."
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
           />
+          
+          {joinError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-sm text-red-600">{joinError}</p>
+            </div>
+          )}
+          
+          <button
+            onClick={handleRequestJoin}
+            disabled={!joinLink.trim()}
+            className="w-full py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Отправить заявку
+          </button>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Описание (необязательно)</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="О вашей семье..."
-            rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
-          />
-        </div>
+        {/* Create Family */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">Создать новую семью</h3>
+              <p className="text-xs text-gray-500">Станьте главой семьи</p>
+            </div>
+          </div>
 
-        <button
-          onClick={handleCreate}
-          disabled={!name.trim()}
-          className="w-full py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-        >
-          Создать профиль семьи
-        </button>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Аватар семьи</label>
+            <div className="flex gap-2 flex-wrap">
+              {familyAvatars.map((a) => (
+                <button
+                  key={a}
+                  onClick={() => setAvatar(a)}
+                  className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                    avatar === a ? 'bg-purple-100 ring-2 ring-purple-400' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Название семьи</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Например: Семья Ивановых"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Описание (необязательно)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="О вашей семье..."
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
+            />
+          </div>
+
+          <button
+            onClick={handleCreate}
+            disabled={!name.trim()}
+            className="w-full py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Создать профиль семьи
+          </button>
+        </div>
       </div>
     );
   }
 
-  // Профиль семьи создан
+  // Family exists - show management interface
   const members = users.filter(u => family.memberIds.includes(u.id));
   const isOwner = family.ownerId === currentUser.id;
 
@@ -543,49 +652,91 @@ function FamilyProfileView({
         {family.description && <p className="text-sm text-gray-500 mt-1">{family.description}</p>}
       </div>
 
-      {/* Edit form */}
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Аватар семьи</label>
-          <div className="flex gap-2 flex-wrap">
-            {familyAvatars.map((a) => (
-              <button
-                key={a}
-                onClick={() => setAvatar(a)}
-                className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
-                  avatar === a ? 'bg-purple-100 ring-2 ring-purple-400' : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                {a}
-              </button>
-            ))}
+      {/* Pending Requests (for owner) */}
+      {isOwner && pendingRequests.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-200 space-y-3">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-orange-500" />
+            Заявки на вступление ({pendingRequests.length})
+          </h3>
+          <div className="space-y-2">
+            {pendingRequests.map((request) => {
+              const requestingUser = users.find(u => u.id === request.userId);
+              if (!requestingUser) return null;
+              
+              return (
+                <div key={request.id} className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+                  <span className="text-2xl">{requestingUser.avatar}</span>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800">{requestingUser.name}</p>
+                    <p className="text-xs text-gray-500">{requestingUser.email}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRespondToRequest(request.id, true)}
+                      className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors"
+                    >
+                      Принять
+                    </button>
+                    <button
+                      onClick={() => handleRespondToRequest(request.id, false)}
+                      className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      Отклонить
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
+      )}
 
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Название семьи"
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
-        />
+      {/* Edit form (for owner) */}
+      {isOwner && (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Аватар семьи</label>
+            <div className="flex gap-2 flex-wrap">
+              {familyAvatars.map((a) => (
+                <button
+                  key={a}
+                  onClick={() => setAvatar(a)}
+                  className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
+                    avatar === a ? 'bg-purple-100 ring-2 ring-purple-400' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Описание"
-          rows={2}
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
-        />
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Название семьи"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+          />
 
-        <button
-          onClick={handleUpdate}
-          className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
-        >
-          <Edit2 className="w-5 h-5" />
-          Сохранить изменения
-        </button>
-      </div>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Описание"
+            rows={2}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
+          />
+
+          <button
+            onClick={handleUpdate}
+            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
+          >
+            <Edit2 className="w-5 h-5" />
+            Сохранить изменения
+          </button>
+        </div>
+      )}
 
       {/* Members */}
       <div className="space-y-3">
@@ -597,34 +748,51 @@ function FamilyProfileView({
               <div className="flex-1">
                 <p className="font-medium text-gray-800">{member.name}</p>
                 <p className="text-xs text-gray-500">{member.email}</p>
+                {member.familyStatus && (
+                  <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                    <span>{member.familyStatus.emoji}</span>
+                    <span>{member.familyStatus.title}</span>
+                  </div>
+                )}
               </div>
               {member.id === family.ownerId ? (
-                <span className="text-lg" title="Создатель">👑</span>
+                <div title="Глава семьи">
+                  <Crown className="w-5 h-5 text-yellow-500" />
+                </div>
               ) : isOwner ? (
-                removeMemberId === member.id ? (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setRemoveMemberId(null)}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      Отмена
-                    </button>
-                    <button
-                      onClick={() => handleRemoveMember(member.id)}
-                      className="px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                ) : (
+                <div className="flex gap-1">
                   <button
-                    onClick={() => setRemoveMemberId(member.id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Удалить участника"
+                    onClick={() => setShowStatusModal(member.id)}
+                    className="p-2 text-purple-500 hover:bg-purple-50 rounded-lg transition-colors"
+                    title="Назначить статус"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Edit2 className="w-4 h-4" />
                   </button>
-                )
+                  {removeMemberId === member.id ? (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setRemoveMemberId(null)}
+                        className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        onClick={() => handleRemoveMember(member.id)}
+                        className="px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setRemoveMemberId(member.id)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Удалить участника"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               ) : null}
             </div>
           ))}
@@ -673,11 +841,9 @@ function FamilyProfileView({
         </button>
       </div>
 
-      {/* Delete Family Section */}
+      {/* Delete Family Section (for owner) */}
       {isOwner && (
         <div className="pt-4 border-t border-gray-200">
-          <h3 className="text-lg font-semibold text-red-600 mb-2">Удаление профиля семьи</h3>
-          
           {!showDeleteConfirm ? (
             <button
               onClick={() => setShowDeleteConfirm(true)}
@@ -720,6 +886,75 @@ function FamilyProfileView({
           )}
         </div>
       )}
+
+      {/* Status Modal */}
+      <AnimatePresence>
+        {showStatusModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowStatusModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-800">Назначить статус</h3>
+                <button
+                  onClick={() => setShowStatusModal(null)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Эмодзи</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {statusEmojis.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => setStatusEmoji(emoji)}
+                        className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
+                          statusEmoji === emoji ? 'bg-purple-100 ring-2 ring-purple-400' : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Название статуса</label>
+                  <input
+                    type="text"
+                    value={statusTitle}
+                    onChange={(e) => setStatusTitle(e.target.value)}
+                    placeholder="Например: Поварушка"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-300 focus:ring-2 focus:ring-purple-100 outline-none transition-all"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleAddStatus(showStatusModal)}
+                  disabled={!statusTitle.trim() || !statusEmoji}
+                  className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Назначить статус
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

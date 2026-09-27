@@ -366,7 +366,10 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0 ${
                   !notif.read ? 'bg-orange-100' : 'bg-gray-100'
                 }`}>
-                  {notif.type === 'swipe_request' ? '🍳' : '✅'}
+                  {notif.type === 'swipe_request' ? '🍳' : 
+                   notif.type === 'swipe_response' ? '✅' :
+                   notif.type === 'family_join_request' ? '👋' :
+                   notif.type === 'family_join_response' ? '👨‍👩‍👧‍👦' : '📩'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -424,6 +427,33 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                       Посмотреть выбор
                       <ArrowRight className="w-4 h-4" />
                     </button>
+                  )}
+
+                  {/* Family join request - для главы семьи */}
+                  {notif.type === 'family_join_request' && !selectionMode && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markNotificationRead(notif.id);
+                          // Открываем модалку для принятия/отклонения
+                          const { setPendingNotification } = useStore.getState();
+                          setPendingNotification(notif);
+                        }}
+                        className="flex-1 px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-xl hover:bg-purple-600 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        Рассмотреть
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Family join response - для пользователя, который подавал заявку */}
+                  {notif.type === 'family_join_response' && !selectionMode && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-purple-600">
+                      <span>👨‍👩‍👧‍👦</span>
+                      <span>Перейдите в профиль для управления семьёй</span>
+                    </div>
                   )}
                 </div>
               </div>
