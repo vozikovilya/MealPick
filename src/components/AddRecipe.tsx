@@ -327,6 +327,47 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
               </button>
             ))}
           </div>
+          
+          <button
+            onClick={() => setShowMealTypeInput(!showMealTypeInput)}
+            className="w-full py-2 text-sm text-orange-600 hover:text-orange-700 flex items-center justify-center gap-1"
+          >
+            {showMealTypeInput ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            Добавить свою категорию
+          </button>
+          
+          <AnimatePresence>
+            {showMealTypeInput && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="p-3 bg-orange-50 rounded-xl space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newMealTypeEmoji}
+                      onChange={(e) => setNewMealTypeEmoji(e.target.value)}
+                      className="w-16 px-3 py-2 rounded-lg border border-orange-200 text-center text-lg"
+                      maxLength={2}
+                    />
+                    <input
+                      type="text"
+                      value={newMealTypeName}
+                      onChange={(e) => setNewMealTypeName(e.target.value)}
+                      placeholder="Название"
+                      className="flex-1 px-3 py-2 rounded-lg border border-orange-200 text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Категория будет добавлена локально для этого блюда
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
