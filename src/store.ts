@@ -419,7 +419,16 @@ export const useStore = create<AppState>()(
       // Family
       createFamilyProfile: (name, avatar, description) => {
         const { currentUserId, familyProfile } = get();
-        if (!currentUserId || familyProfile) return;
+        console.log('🏠 Создание семьи:', { currentUserId, existingFamily: familyProfile });
+        
+        if (!currentUserId) {
+          console.error('❌ Нет текущего пользователя');
+          return;
+        }
+        if (familyProfile) {
+          console.warn('⚠️ Семья уже существует');
+          return;
+        }
         
         const newFamily: FamilyProfile = {
           id: `family_${Date.now()}`,
@@ -432,12 +441,23 @@ export const useStore = create<AppState>()(
           createdAt: Date.now(),
         };
         
+        console.log('✅ Семья создана:', newFamily);
+        
         set({
           familyProfile: newFamily,
           users: get().users.map(u =>
             u.id === currentUserId ? { ...u, familyId: newFamily.id, isFamilyOwner: true } : u
           ),
         });
+        
+        // Проверяем, что данные сохранились
+        setTimeout(() => {
+          const state = get();
+          console.log('🔍 Проверка после создания:', {
+            familyProfile: state.familyProfile,
+            localStorage: localStorage.getItem('meal-picker-storage')
+          });
+        }, 100);
       },
 
       updateFamilyProfile: (data) => {
@@ -871,10 +891,16 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'meal-picker-storage',
-      version: 8,
-      migrate: (persistedState: any) => {
-        // Если есть сохраненные данные - используем их, не перезаписываем
+      version: 9,
+      migrate: (persistedState: any, version: number) => {
+        console.log('🔄 Миграция вызвана, версия:', version);
+        console.log('📦 Persisted state:', persistedState);
+        
+        // Если есть сохраненные данные - используем их
         if (persistedState?.users && persistedState.users.length > 0) {
+          console.log('✅ Используем сохранённые данные');
+          console.log('  - Семья:', persistedState.familyProfile);
+          
           return {
             users: persistedState.users,
             currentUserId: persistedState.currentUserId || null,
@@ -887,6 +913,8 @@ export const useStore = create<AppState>()(
             pendingNotification: null,
           };
         }
+        
+        console.log('⚠️ Нет сохранённых данных, используем дефолтные');
         
         // Если нет данных - используем дефолтного пользователя
         return {
