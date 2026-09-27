@@ -18,6 +18,7 @@ function App() {
   const [screen, setScreen] = useState<Screen>('recipes');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [profileKey, setProfileKey] = useState(0); // Для сброса состояния ProfileScreen
   const { notifications, currentUserId, pendingNotification, setPendingNotification, users } = useStore();
 
   const unreadCount = notifications.filter((n) => !n.read && n.type === 'swipe_request').length;
@@ -66,8 +67,11 @@ function App() {
               )}
             </button>
             <button
-              onClick={() => setScreen('profile')}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100 transition-colors"
+              onClick={() => {
+                setScreen('profile');
+                setProfileKey(prev => prev + 1); // Сбрасываем состояние ProfileScreen
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 hover:from-orange-200 hover:to-amber-200 border border-orange-200 transition-all shadow-sm"
             >
               <span className="text-lg">{currentUser.avatar}</span>
               <span className="text-sm font-medium text-gray-700 hidden sm:inline">{currentUser.name}</span>
@@ -121,6 +125,7 @@ function App() {
         )}
         {screen === 'profile' && (
           <ProfileScreen
+            key={profileKey} // Ключ для сброса состояния при клике на кнопку профиля
             onBack={() => setScreen('recipes')}
             onLogout={handleLogout}
           />
