@@ -200,7 +200,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
       </div>
 
       {/* ========== БЛОК: Фото и видео ========== */}
-      <div className="space-y-3">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
             <ImageIcon className="w-4 h-4 text-orange-600" />
@@ -208,7 +208,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
           <h3 className="text-sm font-semibold text-gray-700">Фото и видео</h3>
         </div>
         
-        <div className="space-y-3 pl-10">
+        <div className="space-y-3">
           {/* File Upload */}
           <input
             type="file"
@@ -289,7 +289,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
       </div>
 
       {/* ========== БЛОК: Название ========== */}
-      <div className="space-y-3">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
             <span className="text-sm">✏️</span>
@@ -297,7 +297,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
           <h3 className="text-sm font-semibold text-gray-700">Название</h3>
         </div>
         
-        <div className="space-y-3 pl-10">
+        <div className="space-y-3">
           <input
             type="text"
             value={name}
@@ -316,7 +316,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
       </div>
 
       {/* ========== БЛОК: Категория ========== */}
-      <div className="space-y-3">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
             <span className="text-sm">📋</span>
@@ -324,7 +324,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
           <h3 className="text-sm font-semibold text-gray-700">Категория</h3>
         </div>
         
-        <div className="space-y-3 pl-10">
+        <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
             {allMealTypes.map((option) => (
               <button
@@ -441,7 +441,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
       </div>
 
       {/* ========== БЛОК: Ингредиенты ========== */}
-      <div className="space-y-3">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
             <span className="text-sm">🥘</span>
@@ -449,8 +449,8 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
           <h3 className="text-sm font-semibold text-gray-700">Ингредиенты</h3>
         </div>
         
-        <div className="space-y-3 pl-10">
-          <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
+        <div className="space-y-3">
+          <div className="p-4 bg-gray-50 rounded-xl space-y-3">
             <input
               type="text"
               value={ingName}
@@ -523,7 +523,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
       </div>
 
       {/* ========== БЛОК: Способ приготовления ========== */}
-      <div className="space-y-3">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
             <span className="text-sm">👨‍🍳</span>
@@ -534,7 +534,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
           </div>
         </div>
         
-        <div className="space-y-3 pl-10">
+        <div className="space-y-3">
           {cookingSteps.length > 0 && (
             <div className="space-y-2">
               {cookingSteps.map((s, index) => (
@@ -565,7 +565,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
             </div>
           )}
 
-          <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-2">
+          <div className="p-4 bg-gray-50 rounded-xl space-y-2">
             <input
               type="text"
               value={stepTitle}

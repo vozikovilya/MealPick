@@ -271,7 +271,7 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       users: [defaultUser],
-      currentUserId: null, // По умолчанию не авторизован
+      currentUserId: null,
       familyProfile: null,
       familyJoinRequests: [],
       swipeRequests: [],
@@ -301,9 +301,6 @@ export const useStore = create<AppState>()(
         set({
           users: [...users, newUser],
           currentUserId: newUser.id,
-          // НЕ обнуляем familyProfile - она должна сохраняться для всех пользователей
-          // familyProfile, notifications и т.д. остаются в localStorage
-          // При входе login() проверит, является ли новый пользователь членом семьи
           pendingNotification: null,
         });
         return { success: true, message: 'Регистрация успешна!' };
@@ -318,18 +315,15 @@ export const useStore = create<AppState>()(
           return { success: false, message: 'Неверный email/логин или пароль' };
         }
         
-        // Проверяем, принадлежит ли семья этому пользователю
         const userFamily = familyProfile && familyProfile.memberIds.includes(user.id) 
           ? familyProfile 
           : null;
         
-        // Фильтруем уведомления для текущего пользователя
         const userNotifications = notifications.filter((n) => 
           n.fromUserId === user.id || 
           (userFamily && userFamily.memberIds.includes(n.fromUserId))
         );
         
-        // Фильтруем запросы для текущего пользователя
         const userSwipeRequests = swipeRequests.filter((r) => 
           r.fromUserId === user.id || 
           (r.toUserId === user.id) ||
@@ -350,8 +344,6 @@ export const useStore = create<AppState>()(
         set({ 
           currentUserId: null,
           pendingNotification: null,
-          // familyProfile НЕ обнуляем - она должна сохраняться в localStorage
-          // При следующем входе пользователя login() проверит, является ли он членом семьи
         });
       },
 
@@ -372,14 +364,12 @@ export const useStore = create<AppState>()(
         const currentUser = users.find(u => u.id === currentUserId);
         if (!currentUser) return { success: false, message: 'Пользователь не найден' };
         
-        // Проверяем уникальность email
         if (data.email && data.email !== currentUser.email) {
           if (users.some(u => u.email === data.email)) {
             return { success: false, message: 'Email уже используется' };
           }
         }
         
-        // Проверяем уникальность username
         if (data.username && data.username !== currentUser.username) {
           if (users.some(u => u.username === data.username)) {
             return { success: false, message: 'Логин уже используется' };
@@ -398,16 +388,13 @@ export const useStore = create<AppState>()(
         const { currentUserId, users, familyProfile } = get();
         if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
         
-        // Проверяем, является ли пользователь главным в семье
         if (familyProfile && familyProfile.ownerId === currentUserId) {
           return { success: false, message: 'Нельзя удалить аккаунт, пока вы являетесь создателем профиля семьи. Сначала удалите профиль семьи или передайте права другому участнику.' };
         }
         
-        // Удаляем пользователя
         set({
           users: users.filter(u => u.id !== currentUserId),
           currentUserId: null,
-          // Если пользователь был в семье, удаляем его из списка участников
           familyProfile: familyProfile ? {
             ...familyProfile,
             memberIds: familyProfile.memberIds.filter(id => id !== currentUserId)
@@ -451,12 +438,10 @@ export const useStore = create<AppState>()(
         if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
         if (!familyProfile) return { success: false, message: 'Профиль семьи не найден' };
         
-        // Проверяем, является ли пользователь создателем
         if (familyProfile.ownerId !== currentUserId) {
           return { success: false, message: 'Только создатель может удалить профиль семьи' };
         }
         
-        // Удаляем профиль семьи и очищаем familyId у всех участников
         set({
           familyProfile: null,
           users: users.map(u => ({
@@ -473,17 +458,14 @@ export const useStore = create<AppState>()(
         if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
         if (!familyProfile) return { success: false, message: 'Профиль семьи не найден' };
         
-        // Проверяем, является ли пользователь создателем
         if (familyProfile.ownerId !== currentUserId) {
           return { success: false, message: 'Только создатель может удалять участников' };
         }
         
-        // Нельзя удалить самого создателя
         if (memberId === familyProfile.ownerId) {
           return { success: false, message: 'Нельзя удалить создателя профиля семьи' };
         }
         
-        // Удаляем участника из семьи
         set({
           familyProfile: {
             ...familyProfile,
@@ -500,21 +482,17 @@ export const useStore = create<AppState>()(
         const { currentUserId, familyProfile, familyJoinRequests, users, notifications } = get();
         if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
         
-        // Извлекаем familyId из ссылки
         const familyId = inviteLink.split('/').pop();
         if (!familyId) return { success: false, message: 'Неверная ссылка-приглашение' };
         
-        // Проверяем, существует ли семья
         const targetFamily = familyProfile?.id === familyId ? familyProfile : null;
         if (!targetFamily) return { success: false, message: 'Семья не найдена' };
         
-        // Проверяем, не состоит ли пользователь уже в семье
         const currentUser = users.find(u => u.id === currentUserId);
         if (currentUser?.familyId) {
           return { success: false, message: 'Вы уже состоите в семье' };
         }
         
-        // Проверяем, не отправлял ли пользователь уже заявку
         const existingRequest = familyJoinRequests.find(
           r => r.familyId === familyId && r.userId === currentUserId && r.status === 'pending'
         );
@@ -522,7 +500,6 @@ export const useStore = create<AppState>()(
           return { success: false, message: 'Вы уже отправили заявку' };
         }
         
-        // Создаём заявку
         const newRequest: FamilyJoinRequest = {
           id: `fjr_${Date.now()}`,
           familyId,
@@ -531,7 +508,6 @@ export const useStore = create<AppState>()(
           createdAt: Date.now(),
         };
         
-        // Создаём уведомление для главы семьи
         const notification: Notification = {
           id: `notif_${Date.now()}`,
           type: 'family_join_request',
@@ -557,16 +533,13 @@ export const useStore = create<AppState>()(
         if (!request) return;
         
         const requestingUser = users.find(u => u.id === request.userId);
-        const currentUser = users.find(u => u.id === currentUserId);
         
-        // Обновляем статус заявки
         const updatedRequests = familyJoinRequests.map(r =>
           r.id === requestId
             ? { ...r, status: accept ? 'accepted' as const : 'rejected' as const, processedAt: Date.now() }
             : r
         );
         
-        // Создаём уведомление для заявителя
         const notification: Notification = {
           id: `notif_${Date.now()}`,
           type: 'family_join_response',
@@ -580,7 +553,6 @@ export const useStore = create<AppState>()(
         };
         
         if (accept && familyProfile) {
-          // Добавляем пользователя в семью
           set({
             familyJoinRequests: updatedRequests,
             familyProfile: {
@@ -607,12 +579,10 @@ export const useStore = create<AppState>()(
         if (!currentUserId) return { success: false, message: 'Пользователь не авторизован' };
         if (!familyProfile) return { success: false, message: 'Профиль семьи не найден' };
         
-        // Только глава семьи может добавлять статусы
         if (familyProfile.ownerId !== currentUserId) {
           return { success: false, message: 'Только глава семьи может назначать статусы' };
         }
         
-        // Нельзя назначить статус самому себе
         if (userId === currentUserId) {
           return { success: false, message: 'Нельзя назначить статус самому себе' };
         }
@@ -640,7 +610,6 @@ export const useStore = create<AppState>()(
         if (!currentUserId) return;
         if (!familyProfile) return;
         
-        // Только глава семьи может удалять статусы
         if (familyProfile.ownerId !== currentUserId) return;
         
         set({
@@ -695,7 +664,6 @@ export const useStore = create<AppState>()(
         const { users, currentUserId, familyProfile } = get();
         const currentUser = users.find((u) => u.id === currentUserId);
         
-        // Проверка прав: только владелец рецепта, глава семьи или поварушка могут удалять
         const recipe = users.flatMap((u) => u.recipes).find((r) => r.id === recipeId);
         if (!recipe) return { success: false, message: 'Блюдо не найдено' };
         
@@ -749,7 +717,6 @@ export const useStore = create<AppState>()(
           message = `${fromUser?.name} хочет, чтобы вы выбрали блюда!`;
         }
 
-        // Если отправлено всей семье
         if (toFamilyId && familyProfile) {
           const familyMembers = users.filter((u) => 
             familyProfile.memberIds.includes(u.id) && u.id !== currentUserId
@@ -769,7 +736,6 @@ export const useStore = create<AppState>()(
             notificationsToAdd.push(notification);
           });
         } else if (toUserId) {
-          // Отправлено конкретному пользователю
           const notification: Notification = {
             id: `notif_${Date.now()}`,
             type: 'swipe_request',
@@ -871,9 +837,8 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'meal-picker-storage',
-      version: 8,
-      migrate: (persistedState: any) => {
-        // Если есть сохраненные данные - используем их, не перезаписываем
+      version: 9,
+      migrate: (persistedState: any, version: number) => {
         if (persistedState?.users && persistedState.users.length > 0) {
           return {
             users: persistedState.users,
@@ -888,7 +853,6 @@ export const useStore = create<AppState>()(
           };
         }
         
-        // Если нет данных - используем дефолтного пользователя
         return {
           users: [defaultUser],
           currentUserId: defaultUser.id,

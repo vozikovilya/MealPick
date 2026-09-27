@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from './store';
+import * as api from './services/api';
 import { Recipe } from './types';
 import { RecipeList } from './components/RecipeList';
 import { AddRecipe } from './components/AddRecipe';
@@ -18,14 +19,43 @@ function App() {
   const [screen, setScreen] = useState<Screen>('recipes');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const { notifications, currentUserId, pendingNotification, setPendingNotification, users } = useStore();
+  const [profileKey, setProfileKey] = useState(0); // Для сброса состояния ProfileScreen
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { notifications, pendingNotification, setPendingNotification } = useStore();
+
+  // Проверка авторизации при загрузке
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (api.isAuthenticated()) {
+        try {
+          const profile = await api.getProfile();
+          setCurrentUser(profile.data.user);
+          setIsAuthenticated(true);
+        } catch (error) {
+          // Токен недействителен
+          api.logout();
+          setIsAuthenticated(false);
+        }
+      }
+    };
+    checkAuth();
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read && n.type === 'swipe_request').length;
-  const currentUser = users.find(u => u.id === currentUserId);
 
   // Если не авторизован - показываем экран авторизации
-  if (!currentUserId || !currentUser) {
-    return <AuthScreen onAuth={() => setScreen('recipes')} />;
+  if (!isAuthenticated || !currentUser) {
+    return <AuthScreen onAuth={async () => {
+      try {
+        const profile = await api.getProfile();
+        setCurrentUser(profile.data.user);
+        setIsAuthenticated(true);
+        setScreen('recipes');
+      } catch (error) {
+        console.error('Ошибка загрузки профиля:', error);
+      }
+    }} />;
   }
 
   const handleOpenSwipe = (requestId: string) => {
@@ -39,6 +69,9 @@ function App() {
   };
 
   const handleLogout = () => {
+    api.logout();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
     setScreen('recipes');
   };
 
@@ -66,8 +99,11 @@ function App() {
               )}
             </button>
             <button
-              onClick={() => setScreen('profile')}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100 transition-colors"
+              onClick={() => {
+                setScreen('profile');
+                setProfileKey(prev => prev + 1);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 hover:from-orange-200 hover:to-amber-200 border border-orange-200 transition-all shadow-sm hover:shadow-md"
             >
               <span className="text-lg">{currentUser.avatar}</span>
               <span className="text-sm font-medium text-gray-700 hidden sm:inline">{currentUser.name}</span>
@@ -121,6 +157,7 @@ function App() {
         )}
         {screen === 'profile' && (
           <ProfileScreen
+            key={profileKey} // Ключ для сброса состояния при клике на кнопку профиля
             onBack={() => setScreen('recipes')}
             onLogout={handleLogout}
           />
@@ -128,25 +165,28 @@ function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-orange-100 shadow-lg z-30">
-        <div className="max-w-lg mx-auto px-4 py-2 flex justify-around items-center">
+      <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-white/95 backdrop-blur-lg border-t border-orange-200 shadow-2xl z-30">
+        <div className="max-w-lg mx-auto px-4 py-3 flex justify-around items-center">
           <NavButton
             active={screen === 'recipes'}
             onClick={() => setScreen('recipes')}
             icon={<UtensilsCrossed className="w-5 h-5" />}
             label="Меню"
+            color="orange"
           />
           <NavButton
             active={screen === 'add'}
             onClick={() => setScreen('add')}
             icon={<Plus className="w-5 h-5" />}
             label="Новое блюдо"
+            color="blue"
           />
           <NavButton
             active={screen === 'send'}
             onClick={() => setScreen('send')}
             icon={<Send className="w-5 h-5" />}
             label="Спросить"
+            color="green"
           />
           <NavButton
             active={screen === 'notifications'}
@@ -154,12 +194,14 @@ function App() {
             icon={<Bell className="w-5 h-5" />}
             label="Запросы"
             badge={unreadCount}
+            color="purple"
           />
           <NavButton
             active={screen === 'profile'}
             onClick={() => setScreen('profile')}
             icon={<User className="w-5 h-5" />}
             label="Профиль"
+            color="pink"
           />
         </div>
       </nav>
@@ -193,24 +235,57 @@ function NavButton({
   icon,
   label,
   badge,
+  color = 'orange',
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
   badge?: number;
+  color?: 'orange' | 'blue' | 'green' | 'purple' | 'pink';
 }) {
+  const colorClasses = {
+    orange: {
+      active: 'text-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 shadow-md shadow-orange-200',
+      icon: 'text-orange-500',
+    },
+    blue: {
+      active: 'text-blue-500 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-md shadow-blue-200',
+      icon: 'text-blue-500',
+    },
+    green: {
+      active: 'text-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-md shadow-green-200',
+      icon: 'text-green-500',
+    },
+    purple: {
+      active: 'text-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md shadow-purple-200',
+      icon: 'text-purple-500',
+    },
+    pink: {
+      active: 'text-pink-500 bg-gradient-to-br from-pink-50 to-rose-50 shadow-md shadow-pink-200',
+      icon: 'text-pink-500',
+    },
+  };
+
+  const currentColor = colorClasses[color];
+
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-0.5 p-2 rounded-xl transition-all min-w-[50px] relative ${
-        active ? 'text-orange-500 bg-orange-50' : 'text-gray-400 hover:text-gray-600'
+      className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-2xl transition-all min-w-[60px] relative ${
+        active 
+          ? `${currentColor.active} scale-105` 
+          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
       }`}
     >
-      <div className="h-5 w-5 flex items-center justify-center">{icon}</div>
-      <span className="text-[10px] font-medium leading-tight">{label}</span>
+      <div className={`h-6 w-6 flex items-center justify-center transition-transform ${active ? 'scale-110' : ''}`}>
+        {icon}
+      </div>
+      <span className={`text-[11px] font-semibold leading-tight ${active ? currentColor.icon : ''}`}>
+        {label}
+      </span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
           {badge}
         </span>
       )}
