@@ -192,9 +192,6 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={onDone} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
         <h2 className="text-xl font-bold text-gray-800">
           {editRecipe ? 'Редактировать блюдо' : 'Новое блюдо'}
         </h2>

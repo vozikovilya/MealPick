@@ -121,9 +121,6 @@ export function SendRequest({ onDone }: Props) {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={onDone} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
         <h2 className="text-xl font-bold text-gray-800">Спросить партнёра</h2>
       </div>
 

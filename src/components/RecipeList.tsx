@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, useAllMealTypes } from '../store';
 import { Recipe } from '../types';
-import { Clock, Trash2, ChevronDown, ChevronRight, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
+import { Clock, Trash2, ChevronDown, ChevronUp, ChevronRight, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRecipeImage, getRecipeImages, FALLBACK_IMAGE } from '../utils';
 import { RecipeDetail } from './RecipeDetail';
@@ -137,9 +137,9 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                   </h3>
                   <div className="p-1 rounded-lg bg-gray-100">
                     {collapsedCategories.has(type) ? (
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    ) : (
                       <ChevronDown className="w-4 h-4 text-gray-400" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-gray-400" />
                     )}
                   </div>
                 </button>
@@ -173,8 +173,13 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           {/* Подборки */}
           {Object.keys(collectionRecipes).length > 0 && (
             <>
-              <div className="pt-4 pb-2">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Подборки</h3>
+              <div className="pt-6 pb-2">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl px-4 py-3 border border-purple-100">
+                  <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
+                    <span>✨</span>
+                    <span>Подборки</span>
+                  </h3>
+                </div>
               </div>
               {Object.entries(collectionRecipes).map(([type, recipes]) => {
                 const mealType = allMealTypes.find((m) => m.id === type);
@@ -183,18 +188,18 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                     {/* Collapsible Header */}
                     <button
                       onClick={() => toggleCategory(type)}
-                      className="w-full flex items-center justify-between mb-3 p-2 rounded-xl hover:bg-orange-50/50 transition-colors"
+                      className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-gradient-to-r from-purple-50/50 to-pink-50/50 hover:from-purple-100/50 hover:to-pink-100/50 transition-colors border border-purple-100/50"
                     >
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
                         <span>{mealType?.emoji}</span>
                         <span>{mealType?.name}</span>
-                        <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
+                        <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
                       </h3>
-                      <div className="p-1 rounded-lg bg-gray-100">
+                      <div className="p-1 rounded-lg bg-white/80">
                         {collapsedCategories.has(type) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronDown className="w-4 h-4 text-purple-500" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                          <ChevronUp className="w-4 h-4 text-purple-500" />
                         )}
                       </div>
                     </button>
@@ -247,9 +252,9 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       </h3>
                       <div className="p-1 rounded-lg bg-gray-100">
                         {collapsedCategories.has(type) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                        ) : (
                           <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
                         )}
                       </div>
                     </button>
@@ -283,8 +288,13 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           {/* Подборки */}
           {Object.keys(collectionRecipes).length > 0 && (
             <div className="space-y-4">
-              <div className="pt-2 pb-1">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Подборки</h3>
+              <div className="pt-6 pb-2">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl px-4 py-3 border border-purple-100">
+                  <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
+                    <span>✨</span>
+                    <span>Подборки</span>
+                  </h3>
+                </div>
               </div>
               {Object.entries(collectionRecipes).map(([type, recipes]) => {
                 const mealType = allMealTypes.find((m) => m.id === type);
@@ -292,18 +302,18 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                   <div key={type}>
                     <button
                       onClick={() => toggleCategory(type)}
-                      className="w-full flex items-center justify-between mb-3 p-2 rounded-xl hover:bg-orange-50/50 transition-colors"
+                      className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-gradient-to-r from-purple-50/50 to-pink-50/50 hover:from-purple-100/50 hover:to-pink-100/50 transition-colors border border-purple-100/50"
                     >
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-purple-700 uppercase tracking-wider flex items-center gap-2">
                         <span>{mealType?.emoji}</span>
                         <span>{mealType?.name}</span>
-                        <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
+                        <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
                       </h3>
-                      <div className="p-1 rounded-lg bg-gray-100">
+                      <div className="p-1 rounded-lg bg-white/80">
                         {collapsedCategories.has(type) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronDown className="w-4 h-4 text-purple-500" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                          <ChevronUp className="w-4 h-4 text-purple-500" />
                         )}
                       </div>
                     </button>
