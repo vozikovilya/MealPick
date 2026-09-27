@@ -148,18 +148,18 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                 {/* Collapsible Header */}
                 <button
                   onClick={() => toggleCategory(type)}
-                  className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-white border border-gray-200 hover:border-orange-300 transition-colors"
+                  className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-white border border-gray-200 hover:border-purple-300 transition-colors"
                 >
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-purple-700 flex items-center gap-2">
                     <span className="text-lg">{mealType?.emoji}</span>
                     <span>{mealType?.name}</span>
-                    <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
+                    <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
                   </h3>
-                  <div className="p-1 rounded-lg bg-gray-100">
+                  <div className="p-1 rounded-lg bg-purple-50">
                     {collapsedCategories.has(type) ? (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <ChevronDown className="w-4 h-4 text-purple-500" />
                     ) : (
-                      <ChevronUp className="w-4 h-4 text-gray-400" />
+                      <ChevronUp className="w-4 h-4 text-purple-500" />
                     )}
                   </div>
                 </button>
@@ -205,18 +205,18 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
               <div key={type}>
                 <button
                   onClick={() => toggleCategory(type)}
-                  className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-white border border-gray-200 hover:border-orange-300 transition-colors"
+                  className="w-full flex items-center justify-between mb-3 p-3 rounded-xl bg-white border border-gray-200 hover:border-purple-300 transition-colors"
                 >
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-purple-700 flex items-center gap-2">
                     <span className="text-lg">{mealType?.emoji}</span>
                     <span>{mealType?.name}</span>
-                    <span className="text-xs text-gray-400 font-normal">({recipes.length})</span>
+                    <span className="text-xs text-purple-400 font-normal">({recipes.length})</span>
                   </h3>
-                  <div className="p-1 rounded-lg bg-gray-100">
+                  <div className="p-1 rounded-lg bg-purple-50">
                     {collapsedCategories.has(type) ? (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <ChevronDown className="w-4 h-4 text-purple-500" />
                     ) : (
-                      <ChevronUp className="w-4 h-4 text-gray-400" />
+                      <ChevronUp className="w-4 h-4 text-purple-500" />
                     )}
                   </div>
                 </button>
@@ -456,7 +456,7 @@ function RecipeGridCard({
               onClick={handlePrevImage}
               className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -464,7 +464,7 @@ function RecipeGridCard({
               onClick={handleNextImage}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>

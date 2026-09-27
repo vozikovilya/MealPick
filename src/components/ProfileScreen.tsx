@@ -181,7 +181,7 @@ function PersonalProfile({
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
+        <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <h2 className="text-xl font-bold text-gray-800">Личный профиль</h2>
@@ -497,7 +497,7 @@ function FamilyProfileView({
     return (
       <div className="space-y-5">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
+          <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <h2 className="text-xl font-bold text-gray-800">Профиль семьи</h2>
@@ -608,43 +608,72 @@ function FamilyProfileView({
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
+        <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <h2 className="text-xl font-bold text-gray-800">Профиль семьи</h2>
       </div>
 
-      {/* Success modal */}
+      {/* Success modal - полноэкранное модальное окно */}
       {showSuccess && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="p-4 bg-green-50 border border-green-200 rounded-2xl"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowSuccess(false)}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <Check className="w-5 h-5 text-green-600" />
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            {/* Заголовок с иконкой */}
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">{family.avatar}</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Семья создана!</h3>
+              <p className="text-gray-600">{family.name}</p>
             </div>
-            <div className="flex-1">
-              <p className="font-semibold text-green-800">Профиль семьи создан!</p>
-              <p className="text-xs text-green-600">Поделитесь ссылкой для приглашения</p>
+
+            {/* Описание */}
+            <div className="bg-purple-50 rounded-2xl p-4 mb-6">
+              <p className="text-sm text-purple-700 text-center">
+                Поделитесь ссылкой-приглашением с участниками семьи
+              </p>
             </div>
-          </div>
-          <div className="mt-3 p-2 bg-white rounded-lg border border-green-100 flex items-center gap-2">
-            <input
-              type="text"
-              value={family.inviteLink}
-              readOnly
-              className="flex-1 text-xs text-gray-600 bg-transparent outline-none"
-            />
+
+            {/* Поле с ссылкой */}
+            <div className="bg-gray-50 rounded-xl p-3 mb-6">
+              <label className="text-xs font-medium text-gray-600 mb-2 block">Ссылка для приглашения</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={family.inviteLink}
+                  readOnly
+                  className="flex-1 text-sm text-gray-700 bg-white rounded-lg px-3 py-2 border border-gray-200 outline-none"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-2"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? 'Скопировано' : 'Копировать'}
+                </button>
+              </div>
+            </div>
+
+            {/* Кнопка закрытия */}
             <button
-              onClick={handleCopyLink}
-              className="px-3 py-1.5 bg-purple-100 text-purple-600 text-xs font-medium rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-1"
+              onClick={() => setShowSuccess(false)}
+              className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all"
             >
-              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              {copied ? 'Скопировано' : 'Копировать'}
+              Отлично!
             </button>
-          </div>
+          </motion.div>
         </motion.div>
       )}
 

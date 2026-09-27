@@ -94,7 +94,7 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
         <div className="flex items-center gap-3">
           <button
             onClick={handleCloseDetails}
-            className="p-2 rounded-xl hover:bg-orange-50 transition-colors"
+            className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors"
           >
             <ArrowRight className="w-5 h-5 text-gray-600 rotate-180" />
           </button>
