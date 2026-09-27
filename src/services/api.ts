@@ -2,7 +2,7 @@
  * API сервис для работы с backend
  */
 
-const API_BASE_URL = 'http://ваш_логин.beget.tech/backend/api'; // Замените на ваш домен
+const API_BASE_URL = 'http://q91929se.beget.tech/backend/api';
 
 /**
  * Получение токена из localStorage
