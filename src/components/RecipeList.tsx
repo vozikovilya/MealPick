@@ -14,14 +14,21 @@ interface Props {
 }
 
 export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
-  const { users, currentUserId, deleteRecipe } = useStore();
+  const { users, currentUserId, deleteRecipe, familyProfile } = useStore();
   const allMealTypes = useAllMealTypes();
   const currentUser = currentUserId ? users.find((u) => u.id === currentUserId) : null;
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
-  if (!currentUser || currentUser.recipes.length === 0) {
+  // Получаем все рецепты семьи (если есть семья) или только свои
+  const allFamilyRecipes = familyProfile
+    ? users
+        .filter((u) => familyProfile.memberIds.includes(u.id))
+        .flatMap((u) => u.recipes)
+    : currentUser?.recipes || [];
+
+  if (allFamilyRecipes.length === 0) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">🍽️</div>
@@ -46,14 +53,14 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   const collectionRecipes: Record<string, Recipe[]> = {};
   
   mainMealTypes.forEach((mt) => {
-    const recipes = currentUser.recipes.filter((r) => r.mealType === mt.id);
+    const recipes = allFamilyRecipes.filter((r) => r.mealType === mt.id);
     if (recipes.length > 0) {
       groupedRecipes[mt.id] = recipes;
     }
   });
   
   collectionMealTypes.forEach((mt) => {
-    const recipes = currentUser.recipes.filter((r) => r.mealType === mt.id);
+    const recipes = allFamilyRecipes.filter((r) => r.mealType === mt.id);
     if (recipes.length > 0) {
       collectionRecipes[mt.id] = recipes;
     }
@@ -67,6 +74,26 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
       newCollapsed.add(category);
     }
     setCollapsedCategories(newCollapsed);
+  };
+
+  // Функция для проверки прав на удаление
+  const canDeleteRecipe = (recipe: Recipe): boolean => {
+    if (!currentUserId || !currentUser) return false;
+    
+    const isOwner = recipe.ownerId === currentUserId;
+    const isFamilyHead = familyProfile?.ownerId === currentUserId;
+    const hasChefStatus = currentUser.familyStatus?.title === 'Поварушка';
+    
+    return isOwner || isFamilyHead || hasChefStatus;
+  };
+
+  // Функция для получения информации об авторе
+  const getRecipeAuthor = (recipe: Recipe) => {
+    const author = users.find((u) => u.id === recipe.ownerId);
+    return {
+      name: author?.name,
+      avatar: author?.avatar,
+    };
   };
 
   // Если выбрано блюдо — показываем детали
@@ -85,10 +112,14 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">{currentUser.avatar}</span>
+          <span className="text-3xl">{familyProfile ? familyProfile.avatar : currentUser?.avatar}</span>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Моё меню</h2>
-            <p className="text-sm text-gray-500">{currentUser.recipes.length} {currentUser.recipes.length === 1 ? 'блюдо' : currentUser.recipes.length < 5 ? 'блюда' : 'блюд'}</p>
+            <h2 className="text-lg font-bold text-gray-800">
+              {familyProfile ? familyProfile.name : 'Моё меню'}
+            </h2>
+            <p className="text-sm text-gray-500">
+              {allFamilyRecipes.length} {allFamilyRecipes.length === 1 ? 'блюдо' : allFamilyRecipes.length < 5 ? 'блюда' : 'блюд'}
+            </p>
           </div>
         </div>
         
@@ -154,15 +185,21 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       transition={{ duration: 0.2 }}
                       className="space-y-3 py-1"
                     >
-                      {recipes.map((recipe, index) => (
-                        <RecipeCard
-                          key={recipe.id}
-                          recipe={recipe}
-                          onDelete={deleteRecipe}
-                          onView={setSelectedRecipe}
-                          index={index}
-                        />
-                      ))}
+                      {recipes.map((recipe, index) => {
+                        const author = getRecipeAuthor(recipe);
+                        return (
+                          <RecipeCard
+                            key={recipe.id}
+                            recipe={recipe}
+                            onDelete={(id) => deleteRecipe(id)}
+                            onView={setSelectedRecipe}
+                            index={index}
+                            canDelete={canDeleteRecipe(recipe)}
+                            authorName={author.name}
+                            authorAvatar={author.avatar}
+                          />
+                        );
+                      })}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -214,15 +251,21 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           transition={{ duration: 0.2 }}
                           className="space-y-3 py-1"
                         >
-                          {recipes.map((recipe, index) => (
-                            <RecipeCard
-                              key={recipe.id}
-                              recipe={recipe}
-                              onDelete={deleteRecipe}
-                              onView={setSelectedRecipe}
-                              index={index}
-                            />
-                          ))}
+                          {recipes.map((recipe, index) => {
+                            const author = getRecipeAuthor(recipe);
+                            return (
+                              <RecipeCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                onDelete={(id) => deleteRecipe(id)}
+                                onView={setSelectedRecipe}
+                                index={index}
+                                canDelete={canDeleteRecipe(recipe)}
+                                authorName={author.name}
+                                authorAvatar={author.avatar}
+                              />
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -267,15 +310,21 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           transition={{ duration: 0.2 }}
                           className="grid grid-cols-2 gap-3 py-1"
                         >
-                          {recipes.map((recipe, index) => (
-                            <RecipeGridCard
-                              key={recipe.id}
-                              recipe={recipe}
-                              onDelete={deleteRecipe}
-                              onView={setSelectedRecipe}
-                              index={index}
-                            />
-                          ))}
+                          {recipes.map((recipe, index) => {
+                            const author = getRecipeAuthor(recipe);
+                            return (
+                              <RecipeGridCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                onDelete={(id) => deleteRecipe(id)}
+                                onView={setSelectedRecipe}
+                                index={index}
+                                canDelete={canDeleteRecipe(recipe)}
+                                authorName={author.name}
+                                authorAvatar={author.avatar}
+                              />
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -326,15 +375,21 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           transition={{ duration: 0.2 }}
                           className="grid grid-cols-2 gap-3 py-1"
                         >
-                          {recipes.map((recipe, index) => (
-                            <RecipeGridCard
-                              key={recipe.id}
-                              recipe={recipe}
-                              onDelete={deleteRecipe}
-                              onView={setSelectedRecipe}
-                              index={index}
-                            />
-                          ))}
+                          {recipes.map((recipe, index) => {
+                            const author = getRecipeAuthor(recipe);
+                            return (
+                              <RecipeGridCard
+                                key={recipe.id}
+                                recipe={recipe}
+                                onDelete={(id) => deleteRecipe(id)}
+                                onView={setSelectedRecipe}
+                                index={index}
+                                canDelete={canDeleteRecipe(recipe)}
+                                authorName={author.name}
+                                authorAvatar={author.avatar}
+                              />
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -354,11 +409,17 @@ function RecipeCard({
   onDelete,
   onView,
   index,
+  canDelete,
+  authorName,
+  authorAvatar,
 }: {
   recipe: Recipe;
   onDelete: (id: string) => void;
   onView: (recipe: Recipe) => void;
   index: number;
+  canDelete: boolean;
+  authorName?: string;
+  authorAvatar?: string;
 }) {
   const images = getRecipeImages(recipe);
   
@@ -408,15 +469,23 @@ function RecipeCard({
               >
                 <Eye className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => onDelete(recipe.id)}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {canDelete && (
+                <button
+                  onClick={() => onDelete(recipe.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2">
+            {authorName && authorAvatar && (
+              <div className="flex items-center gap-1 text-xs text-gray-400">
+                <span>{authorAvatar}</span>
+                <span>{authorName}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1 text-xs text-gray-400">
               <Clock className="w-3 h-3" />
               <span>{formatIngredients()}</span>
@@ -448,11 +517,17 @@ function RecipeGridCard({
   onDelete,
   onView,
   index,
+  canDelete,
+  authorName,
+  authorAvatar,
 }: {
   recipe: Recipe;
   onDelete: (id: string) => void;
   onView: (recipe: Recipe) => void;
   index: number;
+  canDelete: boolean;
+  authorName?: string;
+  authorAvatar?: string;
 }) {
   const images = getRecipeImages(recipe);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -572,15 +647,17 @@ function RecipeGridCard({
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(recipe.id);
-            }}
-            className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {canDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(recipe.id);
+              }}
+              className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -589,12 +666,19 @@ function RecipeGridCard({
         <h4 className="font-semibold text-gray-800 text-sm truncate">{recipe.name}</h4>
         <p className="text-xs text-gray-500 mt-1 line-clamp-2">{recipe.description}</p>
         <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3 text-gray-400" />
-            <span className="text-xs text-gray-400">
-              {recipe.ingredients?.length || 0} ингр.
-            </span>
-          </div>
+          {authorName && authorAvatar ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs">{authorAvatar}</span>
+              <span className="text-xs text-gray-400">{authorName}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Clock className="w-3 h-3 text-gray-400" />
+              <span className="text-xs text-gray-400">
+                {recipe.ingredients?.length || 0} ингр.
+              </span>
+            </div>
+          )}
           {images.length > 1 && (
             <div className="flex items-center gap-0.5 text-gray-400">
               <Image className="w-3 h-3" />

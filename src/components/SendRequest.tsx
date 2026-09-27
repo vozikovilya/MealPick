@@ -26,6 +26,7 @@ export function SendRequest({ onDone }: Props) {
   const mainMealTypes = useMainMealTypes();
   const allMealTypes = useAllMealTypes();
   
+  const [sendTo, setSendTo] = useState<'family' | 'member'>('family');
   const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
   const [sendMode, setSendMode] = useState<SendMode>('category');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -58,8 +59,6 @@ export function SendRequest({ onDone }: Props) {
   };
 
   const handleSend = () => {
-    if (!partner) return;
-
     let recipeIds: string[] = [];
     let mode: 'category' | 'select' | 'delivery' = 'category';
     let category: string | undefined;
@@ -82,7 +81,11 @@ export function SendRequest({ onDone }: Props) {
     if ((sendMode !== 'delivery' && recipeIds.length === 0) ||
         (sendMode === 'delivery' && selectedDeliveries.length === 0)) return;
 
-    sendSwipeRequest(partner.id, recipeIds, {
+    // Определяем, кому отправляем
+    const toUserId = sendTo === 'member' && partner ? partner.id : null;
+    const toFamilyId = sendTo === 'family' && familyProfile ? familyProfile.id : null;
+
+    sendSwipeRequest(toUserId, toFamilyId, recipeIds, {
       mode,
       category,
       message: message.trim() || undefined,
@@ -103,7 +106,9 @@ export function SendRequest({ onDone }: Props) {
           <Check className="w-10 h-10 text-green-500" />
         </div>
         <h2 className="text-xl font-bold text-gray-800 mb-2">Запрос отправлен!</h2>
-        <p className="text-gray-500">{partner?.name} скоро ответит 🎉</p>
+        <p className="text-gray-500">
+          {sendTo === 'family' ? 'Вся семья скоро ответит' : `${partner?.name} скоро ответит`} 🎉
+        </p>
       </motion.div>
     );
   }
@@ -124,33 +129,45 @@ export function SendRequest({ onDone }: Props) {
         <h2 className="text-xl font-bold text-gray-800">Спросить партнёра</h2>
       </div>
 
-      {/* Partner */}
-      {partner ? (
-        <div
-          onClick={() => setSelectedPartner(partner.id)}
-          className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-            selectedPartner
-              ? 'border-orange-300 bg-orange-50'
-              : 'border-gray-200 hover:border-orange-200'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{partner.avatar}</span>
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-800">{partner.name}</h4>
-              <p className="text-xs text-gray-500">Получатель запроса</p>
-            </div>
-            {selectedPartner && <Check className="w-5 h-5 text-orange-500" />}
+      {/* Send To Selection */}
+      {familyProfile && familyMembers.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-700">Кому отправить?</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setSendTo('family')}
+              className={`py-3 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                sendTo === 'family'
+                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <span className="text-lg">{familyProfile.avatar}</span>
+              <span>Всей семье</span>
+            </button>
+            <button
+              onClick={() => setSendTo('member')}
+              className={`py-3 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                sendTo === 'member'
+                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <span className="text-lg">{partner?.avatar}</span>
+              <span>{partner?.name}</span>
+            </button>
           </div>
-        </div>
-      ) : (
-        <div className="p-4 rounded-2xl border-2 border-dashed border-gray-200 text-center">
-          <p className="text-sm text-gray-500 mb-2">Нет участников семьи</p>
-          <p className="text-xs text-gray-400">Создайте профиль семьи и пригласите участников в разделе "Профиль"</p>
         </div>
       )}
 
-      {selectedPartner && partner && (
+      {!familyProfile && (
+        <div className="p-4 rounded-2xl border-2 border-dashed border-gray-200 text-center">
+          <p className="text-sm text-gray-500 mb-2">Нет семьи</p>
+          <p className="text-xs text-gray-400">Создайте профиль семьи в разделе "Профиль"</p>
+        </div>
+      )}
+
+      {familyProfile && (sendTo === 'family' || (sendTo === 'member' && partner)) && (
         <>
           {/* Mode Selection */}
           <div className="space-y-2">
@@ -419,7 +436,7 @@ export function SendRequest({ onDone }: Props) {
           <button
             onClick={handleSend}
             disabled={
-              !selectedPartner ||
+              (sendTo === 'member' && !partner) ||
               (sendMode === 'category' && selectedCategories.length === 0) ||
               (sendMode === 'select' && selectedRecipes.length === 0) ||
               (sendMode === 'delivery' && selectedDeliveries.length === 0)
