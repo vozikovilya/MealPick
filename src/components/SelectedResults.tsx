@@ -56,7 +56,7 @@ export function SelectedResults({ requestId, onBack }: Props) {
       className="space-y-5"
     >
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
+        <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <h2 className="text-xl font-bold text-gray-800">Результат выбора</h2>

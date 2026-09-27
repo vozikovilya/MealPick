@@ -95,7 +95,7 @@ function DeliverySelector({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
+        <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <div className="flex-1">
@@ -216,7 +216,7 @@ function SwipeContent({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-xl hover:bg-orange-50 transition-colors">
+        <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <div className="flex-1">

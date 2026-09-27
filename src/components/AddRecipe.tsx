@@ -570,7 +570,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
               type="text"
               value={stepTitle}
               onChange={(e) => setStepTitle(e.target.value)}
-              placeholder={`Шаг ${cookingSteps.length + 1}`}
+              placeholder={cookingSteps.length === 0 ? 'Шаг' : `Шаг ${cookingSteps.length + 1}`}
               className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium"
             />
             <textarea
