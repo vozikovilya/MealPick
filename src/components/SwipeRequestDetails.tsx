@@ -56,13 +56,27 @@ export function SwipeRequestDetails({ requestId, onBack }: Props) {
     );
   }
 
-  // Парсим ответы участников
-  const responses = request.responses ? JSON.parse(request.responses) : {};
+  // Парсим ответы участников (проверяем тип данных)
+  let responses: Record<string, number[]> = {};
+  if (request.responses) {
+    if (typeof request.responses === 'string') {
+      try {
+        responses = JSON.parse(request.responses);
+      } catch (e) {
+        console.error('Ошибка парсинга responses:', e);
+        responses = {};
+      }
+    } else if (typeof request.responses === 'object') {
+      responses = request.responses as Record<string, number[]>;
+    }
+  }
   
   // Получаем информацию о всех участниках, которым был отправлен запрос
   const allRecipients = request.to_family_id 
     ? request.family_members || [] // Если отправлено всей семье
-    : [{ id: request.to_user_id, name: request.to_user_name, avatar: request.to_user_avatar }]; // Если отправлено конкретному пользователю
+    : request.to_user 
+      ? [request.to_user] // Если отправлено конкретному пользователю
+      : [{ id: request.to_user_id, name: request.to_user_name, avatar: request.to_user_avatar }]; // Fallback
 
   return (
     <div className="space-y-5">
@@ -126,8 +140,9 @@ export function SwipeRequestDetails({ requestId, onBack }: Props) {
         
         <div className="space-y-2">
           {allRecipients.map((recipient: any) => {
-            const hasResponded = responses[recipient.id] !== undefined;
-            const selectedRecipeIds = hasResponded ? responses[recipient.id] : [];
+            const recipientId = String(recipient.id);
+            const hasResponded = responses[recipientId] !== undefined;
+            const selectedRecipeIds = hasResponded ? responses[recipientId] : [];
             
             return (
               <div
@@ -170,7 +185,8 @@ export function SwipeRequestDetails({ requestId, onBack }: Props) {
           <h3 className="text-sm font-semibold text-gray-700">Выбранные блюда</h3>
           
           {allRecipients.map((recipient: any) => {
-            const selectedRecipeIds = responses[recipient.id] || [];
+            const recipientId = String(recipient.id);
+            const selectedRecipeIds = responses[recipientId] || [];
             if (selectedRecipeIds.length === 0) return null;
             
             const selectedRecipes = recipes.filter(r => selectedRecipeIds.includes(r.id));
@@ -221,7 +237,7 @@ export function SwipeRequestDetails({ requestId, onBack }: Props) {
         <div className="space-y-2">
           {recipes.map((recipe) => {
             // Подсчитываем, сколько раз это блюдо было выбрано
-            const selectedCount = Object.values(responses).reduce((count: number, selectedIds: any) => {
+            const selectedCount = Object.values(responses).reduce((count: number, selectedIds: number[]) => {
               return count + (selectedIds.includes(recipe.id) ? 1 : 0);
             }, 0);
             
