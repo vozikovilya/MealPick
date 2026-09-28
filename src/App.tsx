@@ -96,6 +96,11 @@ function App() {
     localStorage.removeItem('currentScreen');
   };
 
+  // Функция для удаления toast уведомления
+  const removeToastNotification = useCallback((id: string) => {
+    setToastNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
   // Обработчик нового запроса на выбор блюд
   const handleNewSwipeRequest = useCallback((requestId: number, fromUserName: string) => {
     const newNotification: ToastNotification = {
@@ -118,7 +123,7 @@ function App() {
     setTimeout(() => {
       removeToastNotification(newNotification.id);
     }, 10000);
-  }, []);
+  }, [removeToastNotification]);
 
   // Обработчик ответа на запрос
   const handleNewSwipeResponse = useCallback((requestId: number, fromUserName: string) => {
@@ -142,12 +147,7 @@ function App() {
     setTimeout(() => {
       removeToastNotification(newNotification.id);
     }, 10000);
-  }, []);
-
-  // Функция для удаления toast уведомления
-  const removeToastNotification = useCallback((id: string) => {
-    setToastNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+  }, [removeToastNotification]);
 
   // Подключаем систему уведомлений в реальном времени
   useRealTimeNotifications({
