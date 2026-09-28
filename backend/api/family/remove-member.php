@@ -61,10 +61,6 @@ try {
     $stmt = $db->prepare("DELETE FROM family_members WHERE id = ?");
     $stmt->execute([$member['id']]);
     
-    // Обновляем пользователя, удаляя familyId
-    $stmt = $db->prepare("UPDATE users SET familyId = NULL WHERE id = ?");
-    $stmt->execute([$memberId]);
-    
     sendSuccess([], 'Участник удалён из семьи');
     
 } catch (Exception $e) {

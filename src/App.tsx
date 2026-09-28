@@ -15,13 +15,20 @@ import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
 type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile';
 
 function App() {
-  const [screen, setScreen] = useState<Screen>('recipes');
+  // Восстанавливаем сохранённый экран из localStorage
+  const savedScreen = localStorage.getItem('currentScreen') as Screen | null;
+  const [screen, setScreen] = useState<Screen>(savedScreen || 'recipes');
   const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [profileKey, setProfileKey] = useState(0); // Для сброса состояния ProfileScreen
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Сохраняем текущий экран в localStorage при изменении
+  useEffect(() => {
+    localStorage.setItem('currentScreen', screen);
+  }, [screen]);
 
   // Проверка авторизации при загрузке
   useEffect(() => {
@@ -82,6 +89,8 @@ function App() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setScreen('recipes');
+    // Очищаем сохранённый экран при выходе
+    localStorage.removeItem('currentScreen');
   };
 
   return (

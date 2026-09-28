@@ -541,9 +541,10 @@ function FamilyProfileView({
   const handleRemoveMemberFromFamily = async (memberId: number) => {
     try {
       await api.removeFamilyMember(memberId);
-      await onCreate(); // Перезагружаем данные семьи
       setShowRemoveConfirm(null);
       setOpenActionsMenu(null);
+      // Перезагружаем страницу для обновления состояния
+      window.location.reload();
     } catch (error: any) {
       alert(error.message || 'Ошибка удаления участника');
     }
