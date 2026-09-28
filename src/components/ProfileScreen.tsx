@@ -417,8 +417,10 @@ function FamilyProfileView({
     if (!name.trim()) return;
     try {
       await api.createFamily({ name, avatar, description });
+      // Сначала обновляем данные семьи
+      await onCreate();
+      // Затем показываем модальное окно
       setShowSuccess(true);
-      onCreate();
     } catch (error: any) {
       alert(error.message || 'Ошибка создания семьи');
     }
@@ -576,7 +578,7 @@ function FamilyProfileView({
       </div>
 
       {/* Success modal */}
-      {showSuccess && (
+      {showSuccess && family && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
