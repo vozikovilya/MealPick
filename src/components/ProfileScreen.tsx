@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as api from '../services/api';
-import { User, Users, ArrowLeft, Edit2, LogOut, Copy, Check, Trash2, Mail, Lock, AtSign, Crown, Link, UserPlus, X } from 'lucide-react';
+import { User, Users, ArrowLeft, Edit2, LogOut, Copy, Check, Trash2, Mail, Lock, AtSign, Crown, Link, UserPlus, X, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { User as UserType, Family, FamilyMember, JoinRequest } from '../services/api';
 import { JoinRequestModal } from './JoinRequestModal';
@@ -474,6 +474,9 @@ function FamilyProfileView({
   const [selectedRequest, setSelectedRequest] = useState<JoinRequest | null>(null);
   const [showJoinResponse, setShowJoinResponse] = useState(false);
   const [joinResponseAccepted, setJoinResponseAccepted] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [openActionsMenu, setOpenActionsMenu] = useState<number | null>(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState<number | null>(null);
 
   // Синхронизация localFamily с пропсом family
   useEffect(() => {
@@ -529,9 +532,57 @@ function FamilyProfileView({
     try {
       await api.assignFamilyRole(userId, role);
       await onCreate(); // Перезагружаем данные семьи
+      setOpenActionsMenu(null);
     } catch (error: any) {
       alert(error.message || 'Ошибка назначения роли');
     }
+  };
+
+  const handleRemoveMemberFromFamily = async (memberId: number) => {
+    try {
+      await api.removeFamilyMember(memberId);
+      await onCreate(); // Перезагружаем данные семьи
+      setShowRemoveConfirm(null);
+      setOpenActionsMenu(null);
+    } catch (error: any) {
+      alert(error.message || 'Ошибка удаления участника');
+    }
+  };
+
+  const handleShareToSocial = (platform: string) => {
+    if (!localFamily) return;
+    
+    const url = encodeURIComponent(localFamily.invite_link);
+    const text = encodeURIComponent(`Присоединяйся к нашей семье "${localFamily.name}" в MealPick и выбирай блюда вместе!`);
+    
+    let shareUrl = '';
+    
+    switch (platform) {
+      case 'telegram':
+        shareUrl = `https://t.me/share/url?url=${url}&text=${text}`;
+        break;
+      case 'whatsapp':
+        shareUrl = `https://wa.me/?text=${text}%20${url}`;
+        break;
+      case 'viber':
+        shareUrl = `viber://forward?text=${text}%20${url}`;
+        break;
+      case 'vk':
+        shareUrl = `https://vk.com/share.php?url=${url}&title=${text}`;
+        break;
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?url=${url}&text=${text}`;
+        break;
+    }
+    
+    if (shareUrl) {
+      window.open(shareUrl, '_blank');
+    }
+    
+    setShowShareMenu(false);
   };
 
   const handleCopyLink = async () => {
@@ -866,19 +917,40 @@ function FamilyProfileView({
                     </div>
                   </div>
                   {canAssignRole && (
-                    <button
-                      onClick={() => {
-                        const newRole = member.role === 'chef' ? 'member' : 'chef';
-                        handleAssignRole(member.id, newRole);
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        member.role === 'chef'
-                          ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                      }`}
-                    >
-                      {member.role === 'chef' ? 'Убрать роль' : 'Назначить Поварушкой'}
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenActionsMenu(openActionsMenu === member.id ? null : member.id)}
+                        className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors flex items-center gap-1"
+                      >
+                        Действия
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                      
+                      {openActionsMenu === member.id && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-10">
+                          <button
+                            onClick={() => {
+                              const newRole = member.role === 'chef' ? 'member' : 'chef';
+                              handleAssignRole(member.id, newRole);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                          >
+                            <span>{member.role === 'chef' ? '🚫' : '👨‍🍳'}</span>
+                            <span>{member.role === 'chef' ? 'Убрать роль Поварушки' : 'Назначить Поварушкой'}</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowRemoveConfirm(member.id);
+                              setOpenActionsMenu(null);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Удалить из семьи</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -906,19 +978,26 @@ function FamilyProfileView({
         </div>
         <button
           onClick={() => {
-            if (navigator.share && localFamily) {
+            if (!localFamily) return;
+            
+            // Пробуем использовать нативный Share API
+            if (navigator.share) {
               navigator.share({
                 title: `Присоединяйся к семье "${localFamily.name}" в MealPick!`,
                 text: `Присоединяйся к нашей семье в MealPick и выбирай блюда вместе!`,
                 url: localFamily.invite_link,
+              }).catch(() => {
+                // Если пользователь отменил шаринг, показываем меню
+                setShowShareMenu(true);
               });
             } else {
-              handleCopyLink();
+              // Если Share API недоступен, показываем меню шаринга
+              setShowShareMenu(true);
             }
           }}
           className="w-full py-3 bg-purple-50 text-purple-600 font-medium rounded-xl hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
         >
-          📤 Поделиться ссылкой
+          📤 Поделиться в соцсетях
         </button>
       </div>
 
@@ -997,6 +1076,166 @@ function FamilyProfileView({
           accepted={joinResponseAccepted}
           familyName={localFamily.name}
         />
+      )}
+
+      {/* Модалка подтверждения удаления участника */}
+      {showRemoveConfirm && localFamily && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowRemoveConfirm(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Удалить участника</h3>
+              <button
+                onClick={() => setShowRemoveConfirm(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Вы уверены, что хотите удалить этого участника из семьи "{localFamily.name}"?
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRemoveConfirm(null)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => handleRemoveMemberFromFamily(showRemoveConfirm)}
+                className="flex-1 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
+              >
+                Удалить
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Модалка шаринга в социальные сети */}
+      {showShareMenu && localFamily && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowShareMenu(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Поделиться в соцсетях</h3>
+              <button
+                onClick={() => setShowShareMenu(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Пригласите друзей и семью присоединиться к "{localFamily.name}" в MealPick!
+            </p>
+
+            <div className="grid grid-cols-3 gap-3">
+              {/* Telegram */}
+              <button
+                onClick={() => handleShareToSocial('telegram')}
+                className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  ✈️
+                </div>
+                <span className="text-xs font-medium text-gray-700">Telegram</span>
+              </button>
+
+              {/* WhatsApp */}
+              <button
+                onClick={() => handleShareToSocial('whatsapp')}
+                className="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  💬
+                </div>
+                <span className="text-xs font-medium text-gray-700">WhatsApp</span>
+              </button>
+
+              {/* Viber */}
+              <button
+                onClick={() => handleShareToSocial('viber')}
+                className="flex flex-col items-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  📱
+                </div>
+                <span className="text-xs font-medium text-gray-700">Viber</span>
+              </button>
+
+              {/* VK */}
+              <button
+                onClick={() => handleShareToSocial('vk')}
+                className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                  VK
+                </div>
+                <span className="text-xs font-medium text-gray-700">ВКонтакте</span>
+              </button>
+
+              {/* Facebook */}
+              <button
+                onClick={() => handleShareToSocial('facebook')}
+                className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-blue-700 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                  f
+                </div>
+                <span className="text-xs font-medium text-gray-700">Facebook</span>
+              </button>
+
+              {/* Twitter */}
+              <button
+                onClick={() => handleShareToSocial('twitter')}
+                className="flex flex-col items-center gap-2 p-4 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  🐦
+                </div>
+                <span className="text-xs font-medium text-gray-700">Twitter</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => {
+                handleCopyLink();
+                setShowShareMenu(false);
+              }}
+              className="w-full mt-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              Скопировать ссылку
+            </button>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
