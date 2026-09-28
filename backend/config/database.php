@@ -10,8 +10,8 @@ define('DB_USER', 'q91929se_base_1');
 define('DB_PASS', 'Lanceres32rus');
 define('DB_CHARSET', 'utf8mb4');
 
-// JWT настройки
-define('JWT_SECRET', 'mealpick_secret_key_2024_' . bin2hex(random_bytes(16)));
+// JWT настройки - ВАЖНО: ключ должен быть ПОСТОЯННЫМ!
+define('JWT_SECRET', 'mealpick_secret_key_2024_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0');
 define('JWT_ALGORITHM', 'HS256');
 define('JWT_EXPIRATION', 86400 * 7); // 7 дней в секундах
 
@@ -19,12 +19,17 @@ define('JWT_EXPIRATION', 86400 * 7); // 7 дней в секундах
 define('ALLOWED_ORIGINS', [
     'http://localhost:5173',
     'http://localhost:3000',
+    'http://q91929se.beget.tech',
     'https://mealpick.vercel.app'
 ]);
 
-// Включаем отображение ошибок (отключить в production)
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+// Отключаем отображение ошибок в production
+ini_set('display_errors', 0);
+error_reporting(0);
+
+// Логирование ошибок в файл
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../logs/error.log');
 
 // Устанавливаем кодировку
 header('Content-Type: application/json; charset=utf-8');

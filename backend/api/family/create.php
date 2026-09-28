@@ -23,8 +23,16 @@ if (empty($data['name'])) {
     sendError('Название семьи обязательно');
 }
 
+// Валидация длины названия
+if (mb_strlen($data['name']) > 100) {
+    sendError('Название семьи не должно превышать 100 символов');
+}
+
 try {
     $db = getDB();
+    
+    // Начинаем транзакцию для атомарности операций
+    $db->beginTransaction();
     
     // Проверка, не состоит ли пользователь уже в семье
     $stmt = $db->prepare("
@@ -34,6 +42,7 @@ try {
     ");
     $stmt->execute([$userId]);
     if ($stmt->fetch()) {
+        $db->rollBack();
         sendError('Вы уже состоите в семье');
     }
     
@@ -41,16 +50,16 @@ try {
     $inviteLink = 'https://mealspick.app/join/' . bin2hex(random_bytes(16));
     
     // Создание семьи
-    $avatar = $data['avatar'] ?? '👨‍👩‍👧‍👦';
+    $avatar = mb_substr($data['avatar'] ?? '👨‍👩‍👧‍👦', 0, 10); // Ограничиваем длину аватара
     
     $stmt = $db->prepare("
         INSERT INTO families (name, avatar, description, owner_id, invite_link)
         VALUES (?, ?, ?, ?, ?)
     ");
     $stmt->execute([
-        $data['name'],
+        mb_substr($data['name'], 0, 100), // Ограничиваем длину названия
         $avatar,
-        $data['description'] ?? null,
+        isset($data['description']) ? mb_substr($data['description'], 0, 500) : null,
         $userId,
         $inviteLink
     ]);
@@ -64,6 +73,9 @@ try {
     ");
     $stmt->execute([$familyId, $userId]);
     
+    // Коммитим транзакцию
+    $db->commit();
+    
     // Получение данных семьи
     $stmt = $db->prepare("
         SELECT id, name, avatar, description, owner_id, invite_link, created_at
@@ -76,5 +88,10 @@ try {
     sendSuccess(['family' => $family], 'Семья создана');
     
 } catch (Exception $e) {
-    sendError('Ошибка сервера: ' . $e->getMessage(), 500);
+    // Откатываем транзакцию в случае ошибки
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
+    error_log('Ошибка создания семьи: ' . $e->getMessage());
+    sendError('Ошибка сервера', 500);
 }

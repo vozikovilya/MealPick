@@ -16,6 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 // Аутентификация
 $userId = authenticate();
 
+// Параметры пагинации
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 50; // Максимум 100 записей
+$offset = ($page - 1) * $limit;
+
+// Фильтр по типу блюда (опционально)
+$mealType = isset($_GET['meal_type']) ? $_GET['meal_type'] : null;
+
 try {
     $db = getDB();
     
@@ -29,30 +37,56 @@ try {
     $stmt->execute([$userId]);
     $family = $stmt->fetch();
     
-    // Получение блюд
+    // Построение базового запроса
+    $where = [];
+    $params = [];
+    
     if ($family) {
         // Если пользователь в семье - получаем блюда всех участников
-        $stmt = $db->prepare("
-            SELECT r.*, u.name as author_name, u.avatar as author_avatar
+        $where[] = "fm.family_id = ?";
+        $params[] = $family['id'];
+        $where[] = "fm.status = 'accepted'";
+        
+        $baseQuery = "
             FROM recipes r
             JOIN users u ON r.user_id = u.id
             JOIN family_members fm ON u.id = fm.user_id
-            WHERE fm.family_id = ? AND fm.status = 'accepted'
-            ORDER BY r.created_at DESC
-        ");
-        $stmt->execute([$family['id']]);
+        ";
     } else {
         // Если не в семье - только свои блюда
-        $stmt = $db->prepare("
-            SELECT r.*, u.name as author_name, u.avatar as author_avatar
+        $where[] = "r.user_id = ?";
+        $params[] = $userId;
+        
+        $baseQuery = "
             FROM recipes r
             JOIN users u ON r.user_id = u.id
-            WHERE r.user_id = ?
-            ORDER BY r.created_at DESC
-        ");
-        $stmt->execute([$userId]);
+        ";
     }
     
+    // Добавление фильтра по типу блюда
+    if ($mealType) {
+        $where[] = "r.meal_type = ?";
+        $params[] = $mealType;
+    }
+    
+    $whereClause = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+    
+    // Получение общего количества записей
+    $countStmt = $db->prepare("SELECT COUNT(*) as total $baseQuery $whereClause");
+    $countStmt->execute($params);
+    $total = $countStmt->fetch()['total'];
+    
+    // Получение блюд с пагинацией
+    $stmt = $db->prepare("
+        SELECT r.*, u.name as author_name, u.avatar as author_avatar
+        $baseQuery
+        $whereClause
+        ORDER BY r.created_at DESC
+        LIMIT ? OFFSET ?
+    ");
+    
+    $queryParams = array_merge($params, [$limit, $offset]);
+    $stmt->execute($queryParams);
     $recipes = $stmt->fetchAll();
     
     // Декодирование JSON полей
@@ -63,8 +97,17 @@ try {
         $recipe['paired_recipe_ids'] = json_decode($recipe['paired_recipe_ids'] ?? '[]', true);
     }
     
-    sendSuccess(['recipes' => $recipes]);
+    sendSuccess([
+        'recipes' => $recipes,
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => $total,
+            'pages' => ceil($total / $limit)
+        ]
+    ]);
     
 } catch (Exception $e) {
-    sendError('Ошибка сервера: ' . $e->getMessage(), 500);
+    error_log('Ошибка получения списка блюд: ' . $e->getMessage());
+    sendError('Ошибка сервера', 500);
 }
