@@ -152,6 +152,12 @@ export async function updateProfile(data: Partial<User> & { password?: string })
   });
 }
 
+export async function deleteAccount(): Promise<any> {
+  return apiRequest('/user/delete.php', {
+    method: 'DELETE',
+  });
+}
+
 // ==================== FAMILY ====================
 
 export interface Family {
@@ -236,6 +242,20 @@ export async function addFamilyStatus(userId: number, title: string, emoji: stri
   });
 }
 
+export async function removeFamilyStatus(userId: number): Promise<any> {
+  return apiRequest('/family/remove-status.php', {
+    method: 'DELETE',
+    body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+export async function removeFamilyMember(memberId: number): Promise<any> {
+  return apiRequest('/family/remove-member.php', {
+    method: 'DELETE',
+    body: JSON.stringify({ member_id: memberId }),
+  });
+}
+
 export async function deleteFamily(): Promise<any> {
   return apiRequest('/family/delete.php', {
     method: 'DELETE',
@@ -304,6 +324,22 @@ export async function createRecipe(data: {
   });
 }
 
+export async function updateRecipe(recipeId: number, data: {
+  name?: string;
+  description?: string;
+  image_urls?: string[];
+  video_url?: string;
+  meal_type?: string;
+  ingredients?: Ingredient[];
+  cooking_steps?: CookingStep[];
+  paired_recipe_ids?: number[];
+}): Promise<any> {
+  return apiRequest('/recipes/update.php', {
+    method: 'PUT',
+    body: JSON.stringify({ recipe_id: recipeId, ...data }),
+  });
+}
+
 export async function deleteRecipe(recipeId: number): Promise<any> {
   return apiRequest('/recipes/delete.php', {
     method: 'DELETE',
@@ -355,6 +391,12 @@ export async function updateNotifications(data: {
 }
 
 // ==================== SWIPE REQUESTS ====================
+
+export async function getSwipeRequest(requestId: number): Promise<any> {
+  return apiRequest(`/swipe/get.php?id=${requestId}`, {
+    method: 'GET',
+  });
+}
 
 export async function createSwipeRequest(data: {
   recipe_ids: number[];
