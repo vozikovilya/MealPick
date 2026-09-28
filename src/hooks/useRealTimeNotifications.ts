@@ -16,6 +16,14 @@ export function useRealTimeNotifications({
 }: UseRealTimeNotificationsProps) {
   const lastCheckRef = useRef<number>(Date.now());
   const isRunningRef = useRef(false);
+  const onNewSwipeRequestRef = useRef(onNewSwipeRequest);
+  const onNewSwipeResponseRef = useRef(onNewSwipeResponse);
+
+  // Обновляем refs при изменении callback функций
+  useEffect(() => {
+    onNewSwipeRequestRef.current = onNewSwipeRequest;
+    onNewSwipeResponseRef.current = onNewSwipeResponse;
+  }, [onNewSwipeRequest, onNewSwipeResponse]);
 
   useEffect(() => {
     if (!enabled || !api.isAuthenticated()) {
@@ -40,10 +48,10 @@ export function useRealTimeNotifications({
         if (newNotifications.length > 0) {
           // Обрабатываем каждое новое уведомление
           newNotifications.forEach((notification: any) => {
-            if (notification.type === 'swipe_request' && onNewSwipeRequest) {
-              onNewSwipeRequest(notification.request_id, notification.from_user_name);
-            } else if (notification.type === 'swipe_response' && onNewSwipeResponse) {
-              onNewSwipeResponse(notification.request_id, notification.from_user_name);
+            if (notification.type === 'swipe_request' && onNewSwipeRequestRef.current) {
+              onNewSwipeRequestRef.current(notification.request_id, notification.from_user_name);
+            } else if (notification.type === 'swipe_response' && onNewSwipeResponseRef.current) {
+              onNewSwipeResponseRef.current(notification.request_id, notification.from_user_name);
             }
           });
         }
@@ -65,5 +73,5 @@ export function useRealTimeNotifications({
     return () => {
       clearInterval(intervalId);
     };
-  }, [onNewSwipeRequest, onNewSwipeResponse, interval, enabled]);
+  }, [interval, enabled]);
 }

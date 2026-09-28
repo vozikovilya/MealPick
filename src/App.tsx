@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import * as api from './services/api';
 import type { Recipe } from './services/api';
 import { RecipeList } from './components/RecipeList';
@@ -58,20 +58,6 @@ function App() {
     checkAuth();
   }, []);
 
-  // Если не авторизован - показываем экран авторизации
-  if (!isAuthenticated || !currentUser) {
-    return <AuthScreen onAuth={async () => {
-      try {
-        const profile = await api.getProfile();
-        setCurrentUser(profile.data.user);
-        setIsAuthenticated(true);
-        setScreen('recipes');
-      } catch (error) {
-        console.error('Ошибка загрузки профиля:', error);
-      }
-    }} />;
-  }
-
   const handleOpenSwipe = (requestId: number) => {
     setActiveRequestId(requestId);
     setScreen('swipe');
@@ -96,15 +82,30 @@ function App() {
     localStorage.removeItem('currentScreen');
   };
 
+  // Если не авторизован - показываем экран авторизации
+  if (!isAuthenticated || !currentUser) {
+    return <AuthScreen onAuth={async () => {
+      try {
+        const profile = await api.getProfile();
+        setCurrentUser(profile.data.user);
+        setIsAuthenticated(true);
+        setScreen('recipes');
+      } catch (error) {
+        console.error('Ошибка загрузки профиля:', error);
+      }
+    }} />;
+  }
+
   // Функция для удаления toast уведомления
-  const removeToastNotification = useCallback((id: string) => {
+  const removeToastNotification = (id: string) => {
     setToastNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+  };
 
   // Обработчик нового запроса на выбор блюд
-  const handleNewSwipeRequest = useCallback((requestId: number, fromUserName: string) => {
+  const handleNewSwipeRequest = (requestId: number, fromUserName: string) => {
+    const notificationId = `toast_${Date.now()}_${Math.random()}`;
     const newNotification: ToastNotification = {
-      id: `toast_${Date.now()}_${Math.random()}`,
+      id: notificationId,
       type: 'swipe_request',
       title: 'Новый запрос на выбор блюд',
       message: `${fromUserName} отправил(а) вам запрос на выбор блюд`,
@@ -113,7 +114,7 @@ function App() {
       requestId,
       onAction: () => {
         handleOpenSwipe(requestId);
-        removeToastNotification(newNotification.id);
+        removeToastNotification(notificationId);
       },
     };
     
@@ -121,14 +122,15 @@ function App() {
     
     // Автоматически убираем уведомление через 10 секунд
     setTimeout(() => {
-      removeToastNotification(newNotification.id);
+      removeToastNotification(notificationId);
     }, 10000);
-  }, [removeToastNotification]);
+  };
 
   // Обработчик ответа на запрос
-  const handleNewSwipeResponse = useCallback((requestId: number, fromUserName: string) => {
+  const handleNewSwipeResponse = (requestId: number, fromUserName: string) => {
+    const notificationId = `toast_${Date.now()}_${Math.random()}`;
     const newNotification: ToastNotification = {
-      id: `toast_${Date.now()}_${Math.random()}`,
+      id: notificationId,
       type: 'swipe_response',
       title: 'Получен ответ на запрос',
       message: `${fromUserName} выбрал(а) блюда`,
@@ -137,7 +139,7 @@ function App() {
       requestId,
       onAction: () => {
         handleViewDetails(requestId);
-        removeToastNotification(newNotification.id);
+        removeToastNotification(notificationId);
       },
     };
     
@@ -145,9 +147,9 @@ function App() {
     
     // Автоматически убираем уведомление через 10 секунд
     setTimeout(() => {
-      removeToastNotification(newNotification.id);
+      removeToastNotification(notificationId);
     }, 10000);
-  }, [removeToastNotification]);
+  };
 
   // Подключаем систему уведомлений в реальном времени
   useRealTimeNotifications({
