@@ -192,11 +192,20 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-gray-800">Уведомления</h2>
-          {unreadCount > 0 && (
-            <span className="px-2.5 py-1 text-xs font-semibold text-white bg-red-500 rounded-full">
-              {unreadCount}
-            </span>
-          )}
+          <AnimatePresence>
+            {unreadCount > 0 && (
+              <motion.span
+                key={unreadCount}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="px-2.5 py-1 text-xs font-semibold text-white bg-red-500 rounded-full"
+              >
+                {unreadCount}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
