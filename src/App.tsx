@@ -127,6 +127,10 @@ function App() {
         const response = await api.getNotifications();
         const notifications = response.data.notifications;
 
+        // Обновляем счётчик непрочитанных уведомлений
+        const unreadCount = notifications.filter((n: any) => !n.is_read).length;
+        setUnreadCount(unreadCount);
+
         const newNotifications = notifications.filter(
           (n: any) => new Date(n.created_at).getTime() > lastCheckRef.current
         );
