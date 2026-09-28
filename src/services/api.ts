@@ -372,6 +372,12 @@ export async function updateNotifications(data: {
 
 // ==================== SWIPE REQUESTS ====================
 
+export async function getSwipeRequest(requestId: number): Promise<any> {
+  return apiRequest(`/swipe/get.php?id=${requestId}`, {
+    method: 'GET',
+  });
+}
+
 export async function createSwipeRequest(data: {
   recipe_ids: number[];
   to_user_id?: number;
