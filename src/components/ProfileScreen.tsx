@@ -465,6 +465,11 @@ function FamilyProfileView({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  // Синхронизация localFamily с пропсом family
+  useEffect(() => {
+    setLocalFamily(family);
+  }, [family]);
+
   const familyAvatars = ['👨‍👩‍👧‍👦', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👦', '👩‍👦', '👨‍👧', '👩‍👧', '🏠', '❤️'];
 
   const handleCreate = async () => {
@@ -653,7 +658,7 @@ function FamilyProfileView({
   }
 
   // Family exists - show management interface
-  const isOwner = family.owner_id === currentUser.id;
+  const isOwner = localFamily?.owner_id === currentUser.id;
 
   return (
     <div className="space-y-5">
