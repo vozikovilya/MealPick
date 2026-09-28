@@ -31,7 +31,11 @@ try {
     $family = $stmt->fetch();
     
     if (!$family) {
-        sendSuccess(['family' => null], 'Пользователь не состоит в семье');
+        sendSuccess([
+            'family' => null,
+            'members' => [],
+            'pendingRequests' => []
+        ], 'Пользователь не состоит в семье');
     }
     
     // Получение участников семьи

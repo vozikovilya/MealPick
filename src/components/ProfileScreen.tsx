@@ -29,11 +29,16 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
       const profileResponse = await api.getProfile();
       setUser(profileResponse.data.user);
       
-      if (profileResponse.data.family) {
-        setFamily(profileResponse.data.family);
-        const familyResponse = await api.getFamily();
+      // Всегда загружаем полную информацию о семье через getFamily()
+      const familyResponse = await api.getFamily();
+      if (familyResponse.data.family) {
+        setFamily(familyResponse.data.family);
         setMembers(familyResponse.data.members);
         setPendingRequests(familyResponse.data.pendingRequests);
+      } else {
+        setFamily(null);
+        setMembers([]);
+        setPendingRequests([]);
       }
     } catch (error: any) {
       console.error('Ошибка загрузки профиля:', error);
@@ -475,14 +480,10 @@ function FamilyProfileView({
   const handleCreate = async () => {
     if (!name.trim()) return;
     try {
-      const response = await api.createFamily({ name, avatar, description });
-      // Получаем данные семьи из ответа
-      const familyData = response.data.family;
-      // Обновляем локальное состояние семьи
-      setLocalFamily(familyData);
-      // Обновляем состояние в родительском компоненте
+      await api.createFamily({ name, avatar, description });
+      // Обновляем состояние в родительском компоненте (загружает полные данные семьи)
       await onCreate();
-      // Затем показываем модальное окно
+      // Показываем модальное окно
       setShowSuccess(true);
     } catch (error: any) {
       alert(error.message || 'Ошибка создания семьи');

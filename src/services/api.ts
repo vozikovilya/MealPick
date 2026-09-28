@@ -198,7 +198,7 @@ export interface JoinRequest {
 export interface FamilyResponse {
   success: boolean;
   data: {
-    family: Family;
+    family: Family | null;
     members: FamilyMember[];
     pendingRequests: JoinRequest[];
   };
