@@ -221,6 +221,16 @@ export async function getFamily(): Promise<FamilyResponse> {
   });
 }
 
+export async function updateFamily(data: {
+  name?: string;
+  avatar?: string;
+}): Promise<any> {
+  return apiRequest('/family/update.php', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function joinFamily(inviteLink: string): Promise<any> {
   return apiRequest('/family/join.php', {
     method: 'POST',

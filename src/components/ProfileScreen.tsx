@@ -477,10 +477,18 @@ function FamilyProfileView({
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [openActionsMenu, setOpenActionsMenu] = useState<number | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<number | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState(family?.name || '');
+  const [editAvatar, setEditAvatar] = useState(family?.avatar || '👨‍👩‍👧‍👦');
+  const [editError, setEditError] = useState('');
 
   // Синхронизация localFamily с пропсом family
   useEffect(() => {
     setLocalFamily(family);
+    if (family) {
+      setEditName(family.name);
+      setEditAvatar(family.avatar);
+    }
   }, [family]);
 
   const familyAvatars = ['👨‍👩‍👧‍👦', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👦', '👩‍👦', '👨‍👧', '👩‍👧', '🏠', '❤️'];
@@ -547,6 +555,26 @@ function FamilyProfileView({
       window.location.reload();
     } catch (error: any) {
       alert(error.message || 'Ошибка удаления участника');
+    }
+  };
+
+  const handleUpdateFamily = async () => {
+    if (!editName.trim()) {
+      setEditError('Название семьи обязательно');
+      return;
+    }
+    
+    setEditError('');
+    try {
+      await api.updateFamily({
+        name: editName.trim(),
+        avatar: editAvatar,
+      });
+      setShowEditModal(false);
+      // Перезагружаем данные семьи
+      await onCreate();
+    } catch (error: any) {
+      setEditError(error.message || 'Ошибка обновления семьи');
     }
   };
 
@@ -820,10 +848,23 @@ function FamilyProfileView({
       )}
 
       {/* Family card */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
-        <div className="text-5xl mb-3">{localFamily?.avatar}</div>
-        <h3 className="text-lg font-bold text-gray-800">{localFamily?.name}</h3>
-        {localFamily?.description && <p className="text-sm text-gray-500 mt-1">{localFamily.description}</p>}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="text-center mb-4">
+          <div className="text-5xl mb-3">{localFamily?.avatar}</div>
+          <h3 className="text-lg font-bold text-gray-800">{localFamily?.name}</h3>
+          {localFamily?.description && <p className="text-sm text-gray-500 mt-1">{localFamily.description}</p>}
+        </div>
+        
+        {/* Edit button (for owner) */}
+        {isOwner && (
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="w-full py-2.5 bg-orange-50 text-orange-600 font-medium rounded-xl hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
+          >
+            <Edit2 className="w-4 h-4" />
+            Редактировать семью
+          </button>
+        )}
       </div>
 
       {/* Pending Requests (for owner) */}
@@ -1235,6 +1276,90 @@ function FamilyProfileView({
               <Copy className="w-4 h-4" />
               Скопировать ссылку
             </button>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Edit Family Modal */}
+      {showEditModal && localFamily && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowEditModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Редактировать семью</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Avatar selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Аватар семьи</label>
+                <div className="flex gap-2 flex-wrap">
+                  {familyAvatars.map((a) => (
+                    <button
+                      key={a}
+                      onClick={() => setEditAvatar(a)}
+                      className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                        editAvatar === a ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Название семьи</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Например: Семья Ивановых"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                  maxLength={100}
+                />
+              </div>
+
+              {editError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-600">{editError}</p>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleUpdateFamily}
+                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
           </motion.div>
         </motion.div>
       )}

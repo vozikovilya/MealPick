@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as api from './services/api';
 import type { Recipe } from './services/api';
 import { RecipeList } from './components/RecipeList';
@@ -10,6 +10,8 @@ import { SelectedResults } from './components/SelectedResults';
 import { SwipeRequestDetails } from './components/SwipeRequestDetails';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
+import { ToastNotifications, ToastNotification } from './components/ToastNotifications';
+import { useRealTimeNotifications } from './hooks/useRealTimeNotifications';
 import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
 
 type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile';
@@ -24,6 +26,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [toastNotifications, setToastNotifications] = useState<ToastNotification[]>([]);
 
   // Сохраняем текущий экран в localStorage при изменении
   useEffect(() => {
@@ -92,6 +95,67 @@ function App() {
     // Очищаем сохранённый экран при выходе
     localStorage.removeItem('currentScreen');
   };
+
+  // Обработчик нового запроса на выбор блюд
+  const handleNewSwipeRequest = useCallback((requestId: number, fromUserName: string) => {
+    const newNotification: ToastNotification = {
+      id: `toast_${Date.now()}_${Math.random()}`,
+      type: 'swipe_request',
+      title: 'Новый запрос на выбор блюд',
+      message: `${fromUserName} отправил(а) вам запрос на выбор блюд`,
+      fromUserAvatar: '🍽️',
+      fromUserName,
+      requestId,
+      onAction: () => {
+        handleOpenSwipe(requestId);
+        removeToastNotification(newNotification.id);
+      },
+    };
+    
+    setToastNotifications(prev => [...prev, newNotification]);
+    
+    // Автоматически убираем уведомление через 10 секунд
+    setTimeout(() => {
+      removeToastNotification(newNotification.id);
+    }, 10000);
+  }, []);
+
+  // Обработчик ответа на запрос
+  const handleNewSwipeResponse = useCallback((requestId: number, fromUserName: string) => {
+    const newNotification: ToastNotification = {
+      id: `toast_${Date.now()}_${Math.random()}`,
+      type: 'swipe_response',
+      title: 'Получен ответ на запрос',
+      message: `${fromUserName} выбрал(а) блюда`,
+      fromUserAvatar: '✅',
+      fromUserName,
+      requestId,
+      onAction: () => {
+        handleViewDetails(requestId);
+        removeToastNotification(newNotification.id);
+      },
+    };
+    
+    setToastNotifications(prev => [...prev, newNotification]);
+    
+    // Автоматически убираем уведомление через 10 секунд
+    setTimeout(() => {
+      removeToastNotification(newNotification.id);
+    }, 10000);
+  }, []);
+
+  // Функция для удаления toast уведомления
+  const removeToastNotification = useCallback((id: string) => {
+    setToastNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  // Подключаем систему уведомлений в реальном времени
+  useRealTimeNotifications({
+    onNewSwipeRequest: handleNewSwipeRequest,
+    onNewSwipeResponse: handleNewSwipeResponse,
+    interval: 5000, // Проверяем каждые 5 секунд
+    enabled: isAuthenticated,
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
@@ -230,6 +294,17 @@ function App() {
           />
         </div>
       </nav>
+
+      {/* Toast уведомления в реальном времени */}
+      <ToastNotifications
+        notifications={toastNotifications}
+        onClose={removeToastNotification}
+        onAction={(notification) => {
+          if (notification.onAction) {
+            notification.onAction();
+          }
+        }}
+      />
     </div>
   );
 }
