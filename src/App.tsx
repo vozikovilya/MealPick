@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as api from './services/api';
 import type { Recipe } from './services/api';
 import { RecipeList } from './components/RecipeList';
@@ -11,7 +11,6 @@ import { SwipeRequestDetails } from './components/SwipeRequestDetails';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ToastNotifications, ToastNotification } from './components/ToastNotifications';
-import { useRealTimeNotifications } from './hooks/useRealTimeNotifications';
 import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
 
 type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile';
@@ -22,11 +21,15 @@ function App() {
   const [screen, setScreen] = useState<Screen>(savedScreen || 'recipes');
   const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [profileKey, setProfileKey] = useState(0); // Для сброса состояния ProfileScreen
+  const [profileKey, setProfileKey] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [toastNotifications, setToastNotifications] = useState<ToastNotification[]>([]);
+
+  // Refs для callback функций (паттерн "latest ref")
+  const handleOpenSwipeRef = useRef<(id: number) => void>(() => {});
+  const handleViewDetailsRef = useRef<(id: number) => void>(() => {});
 
   // Сохраняем текущий экран в localStorage при изменении
   useEffect(() => {
@@ -42,14 +45,12 @@ function App() {
           setCurrentUser(profile.data.user);
           setIsAuthenticated(true);
           
-          // Загружаем уведомления для подсчета непрочитанных
           const notifResponse = await api.getNotifications();
           const count = notifResponse.data.notifications.filter(
             (n) => !n.is_read && n.type === 'swipe_request'
           ).length;
           setUnreadCount(count);
         } catch (error) {
-          // Токен недействителен
           api.logout();
           setIsAuthenticated(false);
         }
@@ -58,6 +59,105 @@ function App() {
     checkAuth();
   }, []);
 
+  // Функция для удаления toast уведомления
+  const removeToastNotification = (id: string) => {
+    setToastNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  // Обработчик нового запроса на выбор блюд
+  const handleNewSwipeRequest = (requestId: number, fromUserName: string) => {
+    const notificationId = `toast_${Date.now()}_${Math.random()}`;
+    const newNotification: ToastNotification = {
+      id: notificationId,
+      type: 'swipe_request',
+      title: 'Новый запрос на выбор блюд',
+      message: `${fromUserName} отправил(а) вам запрос на выбор блюд`,
+      fromUserAvatar: '🍽️',
+      fromUserName,
+      requestId,
+      onAction: () => {
+        handleOpenSwipeRef.current(requestId);
+        removeToastNotification(notificationId);
+      },
+    };
+    
+    setToastNotifications(prev => [...prev, newNotification]);
+    
+    setTimeout(() => {
+      removeToastNotification(notificationId);
+    }, 10000);
+  };
+
+  // Обработчик ответа на запрос
+  const handleNewSwipeResponse = (requestId: number, fromUserName: string) => {
+    const notificationId = `toast_${Date.now()}_${Math.random()}`;
+    const newNotification: ToastNotification = {
+      id: notificationId,
+      type: 'swipe_response',
+      title: 'Получен ответ на запрос',
+      message: `${fromUserName} выбрал(а) блюда`,
+      fromUserAvatar: '✅',
+      fromUserName,
+      requestId,
+      onAction: () => {
+        handleViewDetailsRef.current(requestId);
+        removeToastNotification(notificationId);
+      },
+    };
+    
+    setToastNotifications(prev => [...prev, newNotification]);
+    
+    setTimeout(() => {
+      removeToastNotification(notificationId);
+    }, 10000);
+  };
+
+  // Polling для уведомлений в реальном времени (без кастомного хука)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const lastCheckRef = { current: Date.now() };
+    const isRunningRef = { current: false };
+
+    const checkForNewNotifications = async () => {
+      if (isRunningRef.current) return;
+
+      try {
+        isRunningRef.current = true;
+        const response = await api.getNotifications();
+        const notifications = response.data.notifications;
+
+        const newNotifications = notifications.filter(
+          (n: any) => new Date(n.created_at).getTime() > lastCheckRef.current
+        );
+
+        if (newNotifications.length > 0) {
+          newNotifications.forEach((notification: any) => {
+            if (notification.type === 'swipe_request') {
+              handleNewSwipeRequest(notification.request_id, notification.from_user_name);
+            } else if (notification.type === 'swipe_response') {
+              handleNewSwipeResponse(notification.request_id, notification.from_user_name);
+            }
+          });
+        }
+
+        lastCheckRef.current = Date.now();
+      } catch (error) {
+        console.error('Ошибка проверки уведомлений:', error);
+      } finally {
+        isRunningRef.current = false;
+      }
+    };
+
+    checkForNewNotifications();
+    const intervalId = setInterval(checkForNewNotifications, 5000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isAuthenticated]);
+
+  // Определяем функции-обработчики
   const handleOpenSwipe = (requestId: number) => {
     setActiveRequestId(requestId);
     setScreen('swipe');
@@ -78,11 +178,14 @@ function App() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setScreen('recipes');
-    // Очищаем сохранённый экран при выходе
     localStorage.removeItem('currentScreen');
   };
 
-  // Если не авторизован - показываем экран авторизации
+  // Обновляем refs
+  handleOpenSwipeRef.current = handleOpenSwipe;
+  handleViewDetailsRef.current = handleViewDetails;
+
+  // Условный возврат ПОСЛЕ всех хуков и функций
   if (!isAuthenticated || !currentUser) {
     return <AuthScreen onAuth={async () => {
       try {
@@ -95,69 +198,6 @@ function App() {
       }
     }} />;
   }
-
-  // Функция для удаления toast уведомления
-  const removeToastNotification = (id: string) => {
-    setToastNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  // Обработчик нового запроса на выбор блюд
-  const handleNewSwipeRequest = (requestId: number, fromUserName: string) => {
-    const notificationId = `toast_${Date.now()}_${Math.random()}`;
-    const newNotification: ToastNotification = {
-      id: notificationId,
-      type: 'swipe_request',
-      title: 'Новый запрос на выбор блюд',
-      message: `${fromUserName} отправил(а) вам запрос на выбор блюд`,
-      fromUserAvatar: '🍽️',
-      fromUserName,
-      requestId,
-      onAction: () => {
-        handleOpenSwipe(requestId);
-        removeToastNotification(notificationId);
-      },
-    };
-    
-    setToastNotifications(prev => [...prev, newNotification]);
-    
-    // Автоматически убираем уведомление через 10 секунд
-    setTimeout(() => {
-      removeToastNotification(notificationId);
-    }, 10000);
-  };
-
-  // Обработчик ответа на запрос
-  const handleNewSwipeResponse = (requestId: number, fromUserName: string) => {
-    const notificationId = `toast_${Date.now()}_${Math.random()}`;
-    const newNotification: ToastNotification = {
-      id: notificationId,
-      type: 'swipe_response',
-      title: 'Получен ответ на запрос',
-      message: `${fromUserName} выбрал(а) блюда`,
-      fromUserAvatar: '✅',
-      fromUserName,
-      requestId,
-      onAction: () => {
-        handleViewDetails(requestId);
-        removeToastNotification(notificationId);
-      },
-    };
-    
-    setToastNotifications(prev => [...prev, newNotification]);
-    
-    // Автоматически убираем уведомление через 10 секунд
-    setTimeout(() => {
-      removeToastNotification(notificationId);
-    }, 10000);
-  };
-
-  // Подключаем систему уведомлений в реальном времени
-  useRealTimeNotifications({
-    onNewSwipeRequest: handleNewSwipeRequest,
-    onNewSwipeResponse: handleNewSwipeResponse,
-    interval: 5000, // Проверяем каждые 5 секунд
-    enabled: isAuthenticated,
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
@@ -248,7 +288,7 @@ function App() {
         )}
         {screen === 'profile' && (
           <ProfileScreen
-            key={profileKey} // Ключ для сброса состояния при клике на кнопку профиля
+            key={profileKey}
             onBack={() => setScreen('recipes')}
             onLogout={handleLogout}
           />
