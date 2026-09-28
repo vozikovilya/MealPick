@@ -272,6 +272,7 @@ function App() {
             onOpenSwipe={handleOpenSwipe}
             onViewResults={handleViewResults}
             onViewDetails={handleViewDetails}
+            onUnreadCountChange={setUnreadCount}
           />
         )}
         {screen === 'results' && activeRequestId && (

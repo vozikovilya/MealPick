@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as api from '../services/api';
 import type { Notification } from '../services/api';
 import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare } from 'lucide-react';
@@ -8,17 +8,75 @@ interface Props {
   onOpenSwipe: (requestId: number) => void;
   onViewResults: (requestId: number) => void;
   onViewDetails?: (requestId: number) => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
-export function Notifications({ onOpenSwipe, onViewResults, onViewDetails }: Props) {
+export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnreadCountChange }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
+  
+  // Refs для Intersection Observer
+  const notificationRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const visibilityTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     loadNotifications();
   }, []);
+
+  // Обновляем счётчик непрочитанных
+  useEffect(() => {
+    const unreadCount = notifications.filter((n) => !n.is_read).length;
+    if (onUnreadCountChange) {
+      onUnreadCountChange(unreadCount);
+    }
+  }, [notifications, onUnreadCountChange]);
+
+  // Intersection Observer для автоматического прочтения
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const notificationId = Number(entry.target.getAttribute('data-notification-id'));
+          const notification = notifications.find((n) => n.id === notificationId);
+          
+          if (!notification || notification.is_read) return;
+
+          if (entry.isIntersecting) {
+            // Уведомление стало видимым - запускаем таймер
+            const timer = setTimeout(() => {
+              handleMarkAsRead(notificationId);
+            }, 2000); // 2 секунды
+            
+            visibilityTimers.current.set(notificationId, timer);
+          } else {
+            // Уведомление стало невидимым - отменяем таймер
+            const timer = visibilityTimers.current.get(notificationId);
+            if (timer) {
+              clearTimeout(timer);
+              visibilityTimers.current.delete(notificationId);
+            }
+          }
+        });
+      },
+      {
+        threshold: 0.5, // Уведомление считается видимым, если 50% его площади в зоне видимости
+      }
+    );
+
+    // Наблюдаем за всеми уведомлениями
+    notificationRefs.current.forEach((element) => {
+      observer.observe(element);
+    });
+
+    return () => {
+      observer.disconnect();
+      // Очищаем все таймеры
+      visibilityTimers.current.forEach((timer) => clearTimeout(timer));
+      visibilityTimers.current.clear();
+    };
+  }, [notifications]);
 
   const loadNotifications = async () => {
     try {
@@ -132,7 +190,14 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails }: Pro
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">Уведомления</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold text-gray-800">Уведомления</h2>
+          {unreadCount > 0 && (
+            <span className="px-2.5 py-1 text-xs font-semibold text-white bg-red-500 rounded-full">
+              {unreadCount}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <button
@@ -226,6 +291,14 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails }: Pro
           return (
             <motion.div
               key={notif.id}
+              ref={(el) => {
+                if (el) {
+                  notificationRefs.current.set(notif.id, el);
+                } else {
+                  notificationRefs.current.delete(notif.id);
+                }
+              }}
+              data-notification-id={notif.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
