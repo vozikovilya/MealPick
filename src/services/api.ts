@@ -198,7 +198,7 @@ export interface JoinRequest {
 export interface FamilyResponse {
   success: boolean;
   data: {
-    family: Family;
+    family: Family | null;
     members: FamilyMember[];
     pendingRequests: JoinRequest[];
   };
@@ -218,6 +218,16 @@ export async function createFamily(data: {
 export async function getFamily(): Promise<FamilyResponse> {
   return apiRequest<FamilyResponse>('/family/get.php', {
     method: 'GET',
+  });
+}
+
+export async function updateFamily(data: {
+  name?: string;
+  avatar?: string;
+}): Promise<any> {
+  return apiRequest('/family/update.php', {
+    method: 'PUT',
+    body: JSON.stringify(data),
   });
 }
 
@@ -253,6 +263,13 @@ export async function removeFamilyMember(memberId: number): Promise<any> {
   return apiRequest('/family/remove-member.php', {
     method: 'DELETE',
     body: JSON.stringify({ member_id: memberId }),
+  });
+}
+
+export async function assignFamilyRole(userId: number, role: string): Promise<any> {
+  return apiRequest('/family/assign-role.php', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, role }),
   });
 }
 

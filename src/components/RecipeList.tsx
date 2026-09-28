@@ -28,10 +28,46 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userFamily, setUserFamily] = useState<any>(null);
 
   useEffect(() => {
     loadRecipes();
+    loadUserData();
   }, []);
+
+  const loadUserData = async () => {
+    try {
+      const profileResponse = await api.getProfile();
+      setCurrentUser(profileResponse.data.user);
+      
+      if (profileResponse.data.family) {
+        const familyResponse = await api.getFamily();
+        setUserFamily(familyResponse.data.family);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки данных пользователя:', error);
+    }
+  };
+
+  // Проверка прав на удаление блюда
+  const canDeleteRecipe = (recipe: Recipe): boolean => {
+    if (!currentUser) return false;
+    
+    // Владелец блюда всегда может удалить
+    if (recipe.user_id === currentUser.id) return true;
+    
+    // Глава семьи может удалить любое блюдо
+    if (userFamily && userFamily.owner_id === currentUser.id) return true;
+    
+    // Поварушка может удалить любое блюдо
+    if (userFamily) {
+      const member = userFamily.members?.find((m: any) => m.id === currentUser.id);
+      if (member && member.role === 'chef') return true;
+    }
+    
+    return false;
+  };
 
   const loadRecipes = async () => {
     try {
@@ -197,6 +233,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           onDelete={handleDeleteRecipe}
                           onView={setSelectedRecipe}
                           index={index}
+                          canDelete={canDeleteRecipe(recipe)}
                         />
                       ))}
                     </motion.div>
@@ -246,6 +283,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                           onDelete={handleDeleteRecipe}
                           onView={setSelectedRecipe}
                           index={index}
+                          canDelete={canDeleteRecipe(recipe)}
                         />
                       ))}
                     </motion.div>
@@ -265,11 +303,13 @@ function RecipeCard({
   onDelete,
   onView,
   index,
+  canDelete,
 }: {
   recipe: Recipe;
   onDelete: (id: number) => void;
   onView: (recipe: Recipe) => void;
   index: number;
+  canDelete: boolean;
 }) {
   const images = recipe.image_urls || [];
   
@@ -319,12 +359,14 @@ function RecipeCard({
               >
                 <Eye className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => onDelete(recipe.id)}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {canDelete && (
+                <button
+                  onClick={() => onDelete(recipe.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2">
@@ -350,11 +392,13 @@ function RecipeGridCard({
   onDelete,
   onView,
   index,
+  canDelete,
 }: {
   recipe: Recipe;
   onDelete: (id: number) => void;
   onView: (recipe: Recipe) => void;
   index: number;
+  canDelete: boolean;
 }) {
   const images = recipe.image_urls || [];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -473,15 +517,17 @@ function RecipeGridCard({
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(recipe.id);
-            }}
-            className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {canDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(recipe.id);
+              }}
+              className="w-7 h-7 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-500 rounded-full flex items-center justify-center"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 

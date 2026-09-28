@@ -34,7 +34,7 @@ try {
     
     // Получение информации о семье
     $stmt = $db->prepare("
-        SELECT f.id, f.name, f.avatar, f.description, fm.role
+        SELECT f.id, f.name, f.avatar, f.description, f.owner_id, f.invite_link, f.created_at, fm.role
         FROM families f
         JOIN family_members fm ON f.id = fm.family_id
         WHERE fm.user_id = ? AND fm.status = 'accepted'

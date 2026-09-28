@@ -96,10 +96,37 @@ try {
         // Пока возвращаем пустой массив
     }
     
+    // Получение информации о членах семьи (если запрос отправлен всей семье)
+    $familyMembers = [];
+    if (!empty($request['to_family_id'])) {
+        $stmt = $db->prepare("
+            SELECT u.id, u.name, u.avatar
+            FROM users u
+            JOIN family_members fm ON u.id = fm.user_id
+            WHERE fm.family_id = ? AND fm.status = 'accepted'
+        ");
+        $stmt->execute([$request['to_family_id']]);
+        $familyMembers = $stmt->fetchAll();
+    }
+    
+    // Получение информации о получателе (если запрос отправлен конкретному пользователю)
+    $toUser = null;
+    if (!empty($request['to_user_id'])) {
+        $stmt = $db->prepare("
+            SELECT id, name, avatar
+            FROM users
+            WHERE id = ?
+        ");
+        $stmt->execute([$request['to_user_id']]);
+        $toUser = $stmt->fetch();
+    }
+    
     sendSuccess([
         'request' => $request,
         'recipes' => $recipes,
         'deliveries' => $deliveries,
+        'family_members' => $familyMembers,
+        'to_user' => $toUser,
     ]);
     
 } catch (Exception $e) {
