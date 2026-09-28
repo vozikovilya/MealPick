@@ -7,11 +7,12 @@ import { SendRequest } from './components/SendRequest';
 import { SwipeSelector } from './components/SwipeSelector';
 import { Notifications } from './components/Notifications';
 import { SelectedResults } from './components/SelectedResults';
+import { SwipeRequestDetails } from './components/SwipeRequestDetails';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'profile';
+type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('recipes');
@@ -69,6 +70,11 @@ function App() {
   const handleViewResults = (requestId: number) => {
     setActiveRequestId(requestId);
     setScreen('results');
+  };
+
+  const handleViewDetails = (requestId: number) => {
+    setActiveRequestId(requestId);
+    setScreen('details');
   };
 
   const handleLogout = () => {
@@ -150,10 +156,17 @@ function App() {
           <Notifications
             onOpenSwipe={handleOpenSwipe}
             onViewResults={handleViewResults}
+            onViewDetails={handleViewDetails}
           />
         )}
         {screen === 'results' && activeRequestId && (
           <SelectedResults
+            requestId={activeRequestId}
+            onBack={() => setScreen('notifications')}
+          />
+        )}
+        {screen === 'details' && activeRequestId && (
+          <SwipeRequestDetails
             requestId={activeRequestId}
             onBack={() => setScreen('notifications')}
           />

@@ -1,12 +1,17 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send } from 'lucide-react';
+import { X, Send, Users } from 'lucide-react';
 
 interface RequestSentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  sentToInfo?: {
+    type: 'family' | 'members';
+    familyName?: string;
+    members?: Array<{ name: string; avatar: string }>;
+  } | null;
 }
 
-export function RequestSentModal({ isOpen, onClose }: RequestSentModalProps) {
+export function RequestSentModal({ isOpen, onClose, sentToInfo }: RequestSentModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -53,12 +58,44 @@ export function RequestSentModal({ isOpen, onClose }: RequestSentModalProps) {
               transition={{ delay: 0.4 }}
               className="text-center mb-6"
             >
-              <p className="text-gray-600 mb-3">
-                Ваш запрос на выбор блюд отправлен главе семьи
-              </p>
+              {/* Информация о получателях */}
+              {sentToInfo && (
+                <div className="mb-4">
+                  {sentToInfo.type === 'family' ? (
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <Users className="w-5 h-5 text-purple-600" />
+                        <p className="text-sm font-semibold text-purple-800">
+                          Отправлено всей семье
+                        </p>
+                      </div>
+                      {sentToInfo.familyName && (
+                        <p className="text-xs text-purple-600">
+                          Семья: {sentToInfo.familyName}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100">
+                      <p className="text-sm font-semibold text-blue-800 mb-3">
+                        Отправлено участникам:
+                      </p>
+                      <div className="space-y-2">
+                        {sentToInfo.members?.map((member, index) => (
+                          <div key={index} className="flex items-center gap-2 bg-white rounded-lg p-2">
+                            <span className="text-xl">{member.avatar}</span>
+                            <span className="text-sm text-gray-700">{member.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
                 <p className="text-sm text-orange-800">
-                  💡 Как только глава семьи увидит оповещение, он примет решение, и вы сразу об этом узнаете!
+                  💡 Как только участники увидят оповещение, они сделают выбор, и вы сразу об этом узнаете!
                 </p>
               </div>
             </motion.div>

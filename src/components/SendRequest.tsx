@@ -46,8 +46,8 @@ export function SendRequest({ onDone }: Props) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  const [sendTo, setSendTo] = useState<'family' | 'member'>('family');
-  const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
+  const [sendTo, setSendTo] = useState<'family' | 'members'>('family');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
   const [sendMode, setSendMode] = useState<SendMode>('category');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedRecipes, setSelectedRecipes] = useState<number[]>([]);
@@ -55,6 +55,11 @@ export function SendRequest({ onDone }: Props) {
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
   const [showSentModal, setShowSentModal] = useState(false);
+  const [sentToInfo, setSentToInfo] = useState<{
+    type: 'family' | 'members';
+    familyName?: string;
+    members?: Array<{ name: string; avatar: string }>;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -88,7 +93,13 @@ export function SendRequest({ onDone }: Props) {
 
   // Получаем других участников семьи
   const familyMembers = members.filter(m => m.id !== currentUser?.id);
-  const selectedPartner = familyMembers.find(m => m.id === selectedPartnerId);
+  const selectedMembers = familyMembers.filter(m => selectedMemberIds.includes(m.id));
+
+  const toggleMember = (memberId: number) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    );
+  };
 
   const toggleRecipe = (recipeId: number) => {
     setSelectedRecipes((prev) =>
@@ -134,15 +145,40 @@ export function SendRequest({ onDone }: Props) {
     }
 
     try {
-      await api.createSwipeRequest({
-        recipe_ids: recipeIds,
-        to_user_id: sendTo === 'member' && selectedPartnerId ? selectedPartnerId : undefined,
-        to_family_id: sendTo === 'family' && family ? family.id : undefined,
-        mode,
-        category,
-        message: message.trim() || undefined,
-        delivery_ids: deliveryIds ? deliveryIds.map(id => parseInt(id.replace('d', ''))) : undefined,
-      });
+      // Сохраняем информацию о получателях для модалки
+      if (sendTo === 'family' && family) {
+        setSentToInfo({
+          type: 'family',
+          familyName: family.name,
+        });
+        
+        // Отправка всей семье
+        await api.createSwipeRequest({
+          recipe_ids: recipeIds,
+          to_family_id: family.id,
+          mode,
+          category,
+          message: message.trim() || undefined,
+          delivery_ids: deliveryIds ? deliveryIds.map(id => parseInt(id.replace('d', ''))) : undefined,
+        });
+      } else if (sendTo === 'members' && selectedMemberIds.length > 0) {
+        setSentToInfo({
+          type: 'members',
+          members: selectedMembers.map(m => ({ name: m.name, avatar: m.avatar })),
+        });
+        
+        // Отправка выбранным участникам
+        for (const memberId of selectedMemberIds) {
+          await api.createSwipeRequest({
+            recipe_ids: recipeIds,
+            to_user_id: memberId,
+            mode,
+            category,
+            message: message.trim() || undefined,
+            delivery_ids: deliveryIds ? deliveryIds.map(id => parseInt(id.replace('d', ''))) : undefined,
+          });
+        }
+      }
       
       setSent(true);
       setShowSentModal(true);
@@ -187,6 +223,7 @@ export function SendRequest({ onDone }: Props) {
             setShowSentModal(false);
             onDone();
           }}
+          sentToInfo={sentToInfo}
         />
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
@@ -198,7 +235,12 @@ export function SendRequest({ onDone }: Props) {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Запрос отправлен!</h2>
           <p className="text-gray-500">
-            {sendTo === 'family' ? 'Вся семья скоро ответит' : `${selectedPartner?.name} скоро ответит`} 🎉
+            {sendTo === 'family' 
+              ? 'Вся семья скоро ответит' 
+              : selectedMembers.length === 1 
+                ? `${selectedMembers[0].name} скоро ответит`
+                : `${selectedMembers.length} человек скоро ответят`
+            } 🎉
           </p>
         </motion.div>
       </>
@@ -220,16 +262,18 @@ export function SendRequest({ onDone }: Props) {
 
       {/* Send To Selection */}
       {familyMembers.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
           <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
             <Users className="w-4 h-4" /> Кому отправить?
           </h3>
+          
+          {/* Toggle between family and specific members */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setSendTo('family')}
               className={`py-3 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                 sendTo === 'family'
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-200'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -237,35 +281,69 @@ export function SendRequest({ onDone }: Props) {
               <span>Всей семье</span>
             </button>
             <button
-              onClick={() => {
-                setSendTo('member');
-                if (familyMembers.length > 0 && !selectedPartnerId) {
-                  setSelectedPartnerId(familyMembers[0].id);
-                }
-              }}
+              onClick={() => setSendTo('members')}
               className={`py-3 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                sendTo === 'member'
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                sendTo === 'members'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-200'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              <span className="text-lg">{selectedPartner?.avatar || familyMembers[0]?.avatar}</span>
-              <span>{selectedPartner?.name || familyMembers[0]?.name}</span>
+              <span className="text-lg">👥</span>
+              <span>Выбрать участников</span>
             </button>
           </div>
           
-          {sendTo === 'member' && familyMembers.length > 1 && (
-            <select
-              value={selectedPartnerId || ''}
-              onChange={(e) => setSelectedPartnerId(Number(e.target.value))}
-              className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm"
+          {/* Member selection (when "members" is selected) */}
+          {sendTo === 'members' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-2"
             >
-              {familyMembers.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.avatar} {member.name}
-                </option>
-              ))}
-            </select>
+              <p className="text-xs text-gray-500">Выберите одного или нескольких участников:</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {familyMembers.map((member) => {
+                  const isSelected = selectedMemberIds.includes(member.id);
+                  return (
+                    <button
+                      key={member.id}
+                      onClick={() => toggleMember(member.id)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                        isSelected
+                          ? 'border-orange-400 bg-orange-50'
+                          : 'border-gray-200 hover:border-orange-200 bg-white'
+                      }`}
+                    >
+                      <span className="text-2xl">{member.avatar}</span>
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-medium text-gray-800">{member.name}</p>
+                        {member.role === 'owner' && (
+                          <p className="text-xs text-yellow-600">👑 Глава семьи</p>
+                        )}
+                        {member.role === 'chef' && (
+                          <p className="text-xs text-blue-600">👨‍🍳 Поварушка</p>
+                        )}
+                      </div>
+                      <div
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'bg-orange-500 border-orange-500'
+                            : 'border-gray-300'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-4 h-4 text-white" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedMemberIds.length > 0 && (
+                <p className="text-xs text-orange-600 font-medium">
+                  Выбрано: {selectedMemberIds.length} {selectedMemberIds.length === 1 ? 'участник' : 'участников'}
+                </p>
+              )}
+            </motion.div>
           )}
         </div>
       )}
@@ -487,7 +565,8 @@ export function SendRequest({ onDone }: Props) {
         disabled={
           (sendMode === 'category' && selectedCategories.length === 0) ||
           (sendMode === 'select' && selectedRecipes.length === 0) ||
-          (sendMode === 'delivery' && selectedDeliveries.length === 0)
+          (sendMode === 'delivery' && selectedDeliveries.length === 0) ||
+          (sendTo === 'members' && selectedMemberIds.length === 0)
         }
         className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
       >

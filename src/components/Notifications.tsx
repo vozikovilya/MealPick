@@ -7,9 +7,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface Props {
   onOpenSwipe: (requestId: number) => void;
   onViewResults: (requestId: number) => void;
+  onViewDetails?: (requestId: number) => void;
 }
 
-export function Notifications({ onOpenSwipe, onViewResults }: Props) {
+export function Notifications({ onOpenSwipe, onViewResults, onViewDetails }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -300,11 +301,15 @@ export function Notifications({ onOpenSwipe, onViewResults }: Props) {
                       onClick={async (e) => {
                         e.stopPropagation();
                         await handleMarkAsRead(notif.id);
-                        onViewResults(notif.request_id!);
+                        if (onViewDetails) {
+                          onViewDetails(notif.request_id!);
+                        } else {
+                          onViewResults(notif.request_id!);
+                        }
                       }}
                       className="mt-3 px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-xl hover:bg-green-600 transition-colors flex items-center gap-1.5"
                     >
-                      Посмотреть выбор
+                      Подробнее
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   )}
