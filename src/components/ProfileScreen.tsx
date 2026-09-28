@@ -62,8 +62,38 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
   }
 
   if (view === 'personal') {
-    return <PersonalProfile user={user} onUpdate={loadProfile} onBack={() => setView('main')} />;
+    return <PersonalProfile user={user} family={family} onUpdate={loadProfile} onBack={() => setView('main')} />;
   }
+
+  const handleDeleteFamily = async () => {
+    try {
+      await api.deleteFamily();
+      setFamily(null);
+      setMembers([]);
+      setPendingRequests([]);
+      setView('main');
+    } catch (error: any) {
+      alert(error.message || 'Ошибка удаления семьи');
+    }
+  };
+
+  const handleRemoveMember = async (memberId: number) => {
+    try {
+      await api.removeFamilyMember(memberId);
+      await loadProfile();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка удаления участника');
+    }
+  };
+
+  const handleAddStatus = async (userId: number, title: string, emoji: string) => {
+    try {
+      await api.addFamilyStatus(userId, title, emoji);
+      await loadProfile();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка добавления статуса');
+    }
+  };
 
   if (view === 'family') {
     return (
@@ -73,6 +103,9 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
         members={members}
         pendingRequests={pendingRequests}
         onCreate={loadProfile}
+        onDelete={handleDeleteFamily}
+        onRemoveMember={handleRemoveMember}
+        onAddStatus={handleAddStatus}
         onBack={() => setView('main')}
       />
     );
@@ -136,10 +169,12 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
 
 function PersonalProfile({
   user,
+  family,
   onUpdate,
   onBack,
 }: {
   user: UserType;
+  family: Family | null;
   onUpdate: () => void;
   onBack: () => void;
 }) {
@@ -195,8 +230,9 @@ function PersonalProfile({
   const handleDeleteAccount = async () => {
     setDeleteError('');
     try {
-      await api.deleteFamily();
-      // После удаления семьи пользователь будет перенаправлен на экран входа
+      await api.deleteAccount();
+      // После удаления аккаунта выходим и перенаправляем на экран входа
+      api.logout();
       window.location.reload();
     } catch (err: any) {
       setDeleteError(err.message || 'Ошибка удаления');
@@ -343,10 +379,19 @@ function PersonalProfile({
 
       {/* Удаление аккаунта */}
       <div className="bg-white rounded-2xl border border-red-200 p-5 space-y-4">
+        {family && family.owner_id === user.id && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <p className="text-sm text-yellow-800">
+              ⚠️ Вы являетесь главой семьи "{family.name}". Сначала удалите профиль семьи или передайте права другому участнику.
+            </p>
+          </div>
+        )}
+        
         {!showDeleteConfirm ? (
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+            disabled={!!(family && family.owner_id === user.id)}
+            className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Trash2 className="w-5 h-5" />
             Удалить аккаунт
@@ -394,6 +439,9 @@ function FamilyProfileView({
   members,
   pendingRequests,
   onCreate,
+  onDelete,
+  onRemoveMember,
+  onAddStatus,
   onBack,
 }: {
   family: Family | null;
@@ -401,8 +449,12 @@ function FamilyProfileView({
   members: FamilyMember[];
   pendingRequests: JoinRequest[];
   onCreate: () => void;
+  onDelete: () => void;
+  onRemoveMember: (memberId: number) => void;
+  onAddStatus: (userId: number, title: string, emoji: string) => void;
   onBack: () => void;
 }) {
+  const [localFamily, setLocalFamily] = useState<Family | null>(family);
   const [name, setName] = useState(family?.name || '');
   const [avatar, setAvatar] = useState(family?.avatar || '👨‍👩‍👧‍👦');
   const [description, setDescription] = useState(family?.description || '');
@@ -410,14 +462,20 @@ function FamilyProfileView({
   const [showSuccess, setShowSuccess] = useState(false);
   const [joinLink, setJoinLink] = useState('');
   const [joinError, setJoinError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const familyAvatars = ['👨‍👩‍👧‍👦', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👦', '👩‍👦', '👨‍👧', '👩‍👧', '🏠', '❤️'];
 
   const handleCreate = async () => {
     if (!name.trim()) return;
     try {
-      await api.createFamily({ name, avatar, description });
-      // Сначала обновляем данные семьи
+      const response = await api.createFamily({ name, avatar, description });
+      // Получаем данные семьи из ответа
+      const familyData = response.data.family;
+      // Обновляем локальное состояние семьи
+      setLocalFamily(familyData);
+      // Обновляем состояние в родительском компоненте
       await onCreate();
       // Затем показываем модальное окно
       setShowSuccess(true);
@@ -426,9 +484,38 @@ function FamilyProfileView({
     }
   };
 
+  const handleDeleteFamily = async () => {
+    setDeleteError('');
+    try {
+      await api.deleteFamily();
+      setShowDeleteConfirm(false);
+      onDelete();
+    } catch (error: any) {
+      setDeleteError(error.message || 'Ошибка удаления семьи');
+    }
+  };
+
+  const handleRemoveMember = async (memberId: number) => {
+    try {
+      await api.removeFamilyMember(memberId);
+      onRemoveMember(memberId);
+    } catch (error: any) {
+      alert(error.message || 'Ошибка удаления участника');
+    }
+  };
+
+  const handleAddStatus = async (userId: number, title: string, emoji: string) => {
+    try {
+      await api.addFamilyStatus(userId, title, emoji);
+      onAddStatus(userId, title, emoji);
+    } catch (error: any) {
+      alert(error.message || 'Ошибка добавления статуса');
+    }
+  };
+
   const handleCopyLink = () => {
-    if (family?.invite_link) {
-      navigator.clipboard.writeText(family.invite_link);
+    if (localFamily?.invite_link) {
+      navigator.clipboard.writeText(localFamily.invite_link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -578,7 +665,7 @@ function FamilyProfileView({
       </div>
 
       {/* Success modal */}
-      {showSuccess && family && (
+      {showSuccess && localFamily && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -595,10 +682,10 @@ function FamilyProfileView({
           >
             <div className="text-center mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-4xl">{family.avatar}</span>
+                <span className="text-4xl">{localFamily.avatar}</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">Семья создана!</h3>
-              <p className="text-gray-600">{family.name}</p>
+              <p className="text-gray-600">{localFamily.name}</p>
             </div>
 
             <div className="bg-purple-50 rounded-2xl p-4 mb-6">
@@ -612,7 +699,7 @@ function FamilyProfileView({
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  value={family.invite_link}
+                  value={localFamily.invite_link}
                   readOnly
                   className="flex-1 text-sm text-gray-700 bg-white rounded-lg px-3 py-2 border border-gray-200 outline-none"
                 />
@@ -638,9 +725,9 @@ function FamilyProfileView({
 
       {/* Family card */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
-        <div className="text-5xl mb-3">{family.avatar}</div>
-        <h3 className="text-lg font-bold text-gray-800">{family.name}</h3>
-        {family.description && <p className="text-sm text-gray-500 mt-1">{family.description}</p>}
+        <div className="text-5xl mb-3">{localFamily?.avatar}</div>
+        <h3 className="text-lg font-bold text-gray-800">{localFamily?.name}</h3>
+        {localFamily?.description && <p className="text-sm text-gray-500 mt-1">{localFamily.description}</p>}
       </div>
 
       {/* Pending Requests (for owner) */}
@@ -711,7 +798,7 @@ function FamilyProfileView({
         <div className="flex gap-2">
           <input
             type="text"
-            value={family.invite_link}
+            value={localFamily?.invite_link || ''}
             readOnly
             className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-600"
           />
@@ -725,11 +812,11 @@ function FamilyProfileView({
         </div>
         <button
           onClick={() => {
-            if (navigator.share) {
+            if (navigator.share && localFamily) {
               navigator.share({
-                title: `Присоединяйся к семье "${family.name}" в MealPick!`,
+                title: `Присоединяйся к семье "${localFamily.name}" в MealPick!`,
                 text: `Присоединяйся к нашей семье в MealPick и выбирай блюда вместе!`,
-                url: family.invite_link,
+                url: localFamily.invite_link,
               });
             } else {
               handleCopyLink();
@@ -740,6 +827,52 @@ function FamilyProfileView({
           📤 Поделиться ссылкой
         </button>
       </div>
+
+      {/* Delete Family Section (for owner) */}
+      {isOwner && (
+        <div className="bg-white rounded-2xl border border-red-200 p-5 space-y-4">
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-5 h-5" />
+              Удалить профиль семьи
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-sm text-red-800 font-medium mb-1">Вы уверены?</p>
+                <p className="text-xs text-red-600">Профиль семьи будет удалён для всех участников.</p>
+              </div>
+              
+              {deleteError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-600">{deleteError}</p>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteError('');
+                  }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleDeleteFamily}
+                  className="flex-1 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

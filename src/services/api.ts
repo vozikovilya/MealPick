@@ -152,6 +152,12 @@ export async function updateProfile(data: Partial<User> & { password?: string })
   });
 }
 
+export async function deleteAccount(): Promise<any> {
+  return apiRequest('/user/delete.php', {
+    method: 'DELETE',
+  });
+}
+
 // ==================== FAMILY ====================
 
 export interface Family {
@@ -233,6 +239,20 @@ export async function addFamilyStatus(userId: number, title: string, emoji: stri
   return apiRequest('/family/add-status.php', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, title, emoji }),
+  });
+}
+
+export async function removeFamilyStatus(userId: number): Promise<any> {
+  return apiRequest('/family/remove-status.php', {
+    method: 'DELETE',
+    body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+export async function removeFamilyMember(memberId: number): Promise<any> {
+  return apiRequest('/family/remove-member.php', {
+    method: 'DELETE',
+    body: JSON.stringify({ member_id: memberId }),
   });
 }
 
