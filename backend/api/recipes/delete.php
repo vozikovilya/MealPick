@@ -43,7 +43,7 @@ try {
     } else {
         // Глава семьи или поварушка могут удалить
         $stmt = $db->prepare("
-            SELECT f.owner_id
+            SELECT f.owner_id, fm.role
             FROM families f
             JOIN family_members fm ON f.id = fm.family_id
             WHERE fm.user_id = ? AND fm.status = 'accepted'
@@ -52,19 +52,9 @@ try {
         $family = $stmt->fetch();
         
         if ($family) {
-            // Глава семьи
-            if ($family['owner_id'] == $userId) {
+            // Глава семьи или поварушка
+            if ($family['owner_id'] == $userId || $family['role'] === 'chef') {
                 $canDelete = true;
-            } else {
-                // Поварушка
-                $stmt = $db->prepare("
-                    SELECT id FROM family_statuses
-                    WHERE user_id = ? AND family_id = ? AND title = 'Поварушка'
-                ");
-                $stmt->execute([$userId, $family['id']]);
-                if ($stmt->fetch()) {
-                    $canDelete = true;
-                }
             }
         }
     }

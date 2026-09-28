@@ -3,6 +3,7 @@ import { useStore, useAllMealTypes, useMainMealTypes } from '../store';
 import { ArrowLeft, Send, Check, List, Truck, MessageCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRecipeImage } from '../utils';
+import { RequestSentModal } from './RequestSentModal';
 
 interface Props {
   onDone: () => void;
@@ -34,6 +35,7 @@ export function SendRequest({ onDone }: Props) {
   const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
+  const [showSentModal, setShowSentModal] = useState(false);
 
   // Находим партнёров - других членов семьи
   const familyMembers = familyProfile
@@ -92,24 +94,33 @@ export function SendRequest({ onDone }: Props) {
       deliveryIds,
     });
     setSent(true);
-    setTimeout(() => onDone(), 2000);
+    setShowSentModal(true);
   };
 
   if (sent) {
     return (
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="text-center py-16"
-      >
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Check className="w-10 h-10 text-green-500" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Запрос отправлен!</h2>
-        <p className="text-gray-500">
-          {sendTo === 'family' ? 'Вся семья скоро ответит' : `${partner?.name} скоро ответит`} 🎉
-        </p>
-      </motion.div>
+      <>
+        <RequestSentModal
+          isOpen={showSentModal}
+          onClose={() => {
+            setShowSentModal(false);
+            onDone();
+          }}
+        />
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="text-center py-16"
+        >
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-10 h-10 text-green-500" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Запрос отправлен!</h2>
+          <p className="text-gray-500">
+            {sendTo === 'family' ? 'Вся семья скоро ответит' : `${partner?.name} скоро ответит`} 🎉
+          </p>
+        </motion.div>
+      </>
     );
   }
 

@@ -256,6 +256,13 @@ export async function removeFamilyMember(memberId: number): Promise<any> {
   });
 }
 
+export async function assignFamilyRole(userId: number, role: string): Promise<any> {
+  return apiRequest('/family/assign-role.php', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+}
+
 export async function deleteFamily(): Promise<any> {
   return apiRequest('/family/delete.php', {
     method: 'DELETE',

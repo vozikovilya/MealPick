@@ -3,6 +3,8 @@ import * as api from '../services/api';
 import { User, Users, ArrowLeft, Edit2, LogOut, Copy, Check, Trash2, Mail, Lock, AtSign, Crown, Link, UserPlus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { User as UserType, Family, FamilyMember, JoinRequest } from '../services/api';
+import { JoinRequestModal } from './JoinRequestModal';
+import { JoinResponseModal } from './JoinResponseModal';
 
 type ProfileView = 'main' | 'personal' | 'family';
 
@@ -469,6 +471,9 @@ function FamilyProfileView({
   const [joinError, setJoinError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState<JoinRequest | null>(null);
+  const [showJoinResponse, setShowJoinResponse] = useState(false);
+  const [joinResponseAccepted, setJoinResponseAccepted] = useState(false);
 
   // Синхронизация localFamily с пропсом family
   useEffect(() => {
@@ -495,7 +500,8 @@ function FamilyProfileView({
     try {
       await api.deleteFamily();
       setShowDeleteConfirm(false);
-      onDelete();
+      // Перезагружаем страницу для обновления состояния
+      window.location.reload();
     } catch (error: any) {
       setDeleteError(error.message || 'Ошибка удаления семьи');
     }
@@ -519,11 +525,40 @@ function FamilyProfileView({
     }
   };
 
-  const handleCopyLink = () => {
-    if (localFamily?.invite_link) {
-      navigator.clipboard.writeText(localFamily.invite_link);
+  const handleAssignRole = async (userId: number, role: string) => {
+    try {
+      await api.assignFamilyRole(userId, role);
+      await onCreate(); // Перезагружаем данные семьи
+    } catch (error: any) {
+      alert(error.message || 'Ошибка назначения роли');
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!localFamily?.invite_link) {
+      console.error('Ссылка-приглашение недоступна');
+      return;
+    }
+    
+    try {
+      await navigator.clipboard.writeText(localFamily.invite_link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Ошибка копирования:', error);
+      // Fallback для старых браузеров
+      const textArea = document.createElement('textarea');
+      textArea.value = localFamily.invite_link;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Fallback копирование не удалось:', err);
+      }
+      document.body.removeChild(textArea);
     }
   };
 
@@ -543,6 +578,9 @@ function FamilyProfileView({
   const handleRespondToRequest = async (requestId: number, accept: boolean) => {
     try {
       await api.respondToJoinRequest(requestId, accept);
+      setSelectedRequest(null);
+      setJoinResponseAccepted(accept);
+      setShowJoinResponse(true);
       onCreate();
     } catch (error: any) {
       alert(error.message || 'Ошибка обработки заявки');
@@ -745,26 +783,25 @@ function FamilyProfileView({
           </h3>
           <div className="space-y-2">
             {pendingRequests.map((request) => (
-              <div key={request.id} className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+              <div 
+                key={request.id} 
+                className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl cursor-pointer hover:bg-orange-100 transition-colors"
+                onClick={() => setSelectedRequest(request)}
+              >
                 <span className="text-2xl">{request.avatar}</span>
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">{request.name}</p>
                   <p className="text-xs text-gray-500">{request.email}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleRespondToRequest(request.id, true)}
-                    className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors"
-                  >
-                    Принять
-                  </button>
-                  <button
-                    onClick={() => handleRespondToRequest(request.id, false)}
-                    className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors"
-                  >
-                    Отклонить
-                  </button>
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRequest(request);
+                  }}
+                  className="px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Рассмотреть
+                </button>
               </div>
             ))}
           </div>
@@ -775,26 +812,77 @@ function FamilyProfileView({
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-gray-700">Участники ({members.length})</h3>
         <div className="space-y-2">
-          {members.map((member) => (
-            <div key={member.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-              <span className="text-2xl">{member.avatar}</span>
-              <div className="flex-1">
-                <p className="font-medium text-gray-800">{member.name}</p>
-                <p className="text-xs text-gray-500">{member.email}</p>
-                {member.status && (
-                  <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
-                    <span>{member.status.emoji}</span>
-                    <span>{member.status.title}</span>
+          {members
+            .sort((a, b) => {
+              // Иерархия: владелец первый, потом поварушки, потом остальные
+              if (a.role === 'owner') return -1;
+              if (b.role === 'owner') return 1;
+              if (a.role === 'chef' && b.role !== 'chef') return -1;
+              if (b.role === 'chef' && a.role !== 'chef') return 1;
+              // Остальные по дате加入
+              return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
+            })
+            .map((member) => {
+              const isCurrentUser = member.id === currentUser.id;
+              const canAssignRole = isOwner && member.id !== currentUser.id;
+              
+              return (
+                <div 
+                  key={member.id} 
+                  className={`flex items-center gap-3 p-3 rounded-xl border ${
+                    isCurrentUser 
+                      ? 'bg-orange-50 border-orange-200' 
+                      : 'bg-white border-gray-100'
+                  }`}
+                >
+                  <span className="text-2xl">{member.avatar}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-800">{member.name}</p>
+                      {isCurrentUser && (
+                        <span className="text-xs text-orange-600 font-medium">(Вы)</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">{member.email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {member.role === 'owner' && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">
+                          <Crown className="w-3 h-3" />
+                          <span>Глава семьи</span>
+                        </div>
+                      )}
+                      {member.role === 'chef' && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                          <span>👨‍🍳</span>
+                          <span>Поварушка</span>
+                        </div>
+                      )}
+                      {member.status && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                          <span>{member.status.emoji}</span>
+                          <span>{member.status.title}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-              {member.role === 'owner' && (
-                <div title="Глава семьи">
-                  <Crown className="w-5 h-5 text-yellow-500" />
+                  {canAssignRole && (
+                    <button
+                      onClick={() => {
+                        const newRole = member.role === 'chef' ? 'member' : 'chef';
+                        handleAssignRole(member.id, newRole);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        member.role === 'chef'
+                          ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                      }`}
+                    >
+                      {member.role === 'chef' ? 'Убрать роль' : 'Назначить Поварушкой'}
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              );
+            })}
         </div>
       </div>
 
@@ -878,6 +966,37 @@ function FamilyProfileView({
             </div>
           )}
         </div>
+      )}
+
+      {/* Модалка заявки на вступление */}
+      {selectedRequest && localFamily && (
+        <JoinRequestModal
+          isOpen={true}
+          onClose={() => setSelectedRequest(null)}
+          onAccept={() => handleRespondToRequest(selectedRequest.id, true)}
+          onReject={() => handleRespondToRequest(selectedRequest.id, false)}
+          onLater={() => setSelectedRequest(null)}
+          userName={selectedRequest.name}
+          userEmail={selectedRequest.email}
+          userAvatar={selectedRequest.avatar}
+        />
+      )}
+
+      {/* Модалка результата заявки */}
+      {showJoinResponse && localFamily && (
+        <JoinResponseModal
+          isOpen={true}
+          onClose={() => setShowJoinResponse(false)}
+          onNavigate={() => {
+            setShowJoinResponse(false);
+            if (joinResponseAccepted) {
+              // Переход в профиль семьи
+              window.location.reload();
+            }
+          }}
+          accepted={joinResponseAccepted}
+          familyName={localFamily.name}
+        />
       )}
     </div>
   );
