@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import * as api from '../services/api';
-import { User, Users, ArrowLeft, Edit2, LogOut, Copy, Check, Trash2, Mail, Lock, AtSign, Crown, Link, UserPlus, X, ChevronDown } from 'lucide-react';
+import { User, Users, ArrowLeft, Edit2, LogOut, Copy, Check, Trash2, Mail, Lock, AtSign, Crown, Link, UserPlus, X, ChevronDown, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { User as UserType, Family, FamilyMember, JoinRequest } from '../services/api';
+import type { User as UserType, Family, FamilyMember, JoinRequest, Notification } from '../services/api';
 import { JoinRequestModal } from './JoinRequestModal';
 import { JoinResponseModal } from './JoinResponseModal';
 
-type ProfileView = 'main' | 'personal' | 'family';
+type ProfileView = 'main' | 'personal' | 'family' | 'notifications';
 
 interface Props {
   onBack: () => void;
@@ -19,6 +19,7 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
   const [family, setFamily] = useState<Family | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [pendingRequests, setPendingRequests] = useState<JoinRequest[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,6 +43,10 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
         setMembers([]);
         setPendingRequests([]);
       }
+      
+      // Загружаем уведомления
+      const notificationsResponse = await api.getNotifications();
+      setNotifications(notificationsResponse.data.notifications);
     } catch (error: any) {
       console.error('Ошибка загрузки профиля:', error);
     } finally {
@@ -118,6 +123,16 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
     );
   }
 
+  if (view === 'notifications') {
+    return (
+      <NotificationsView
+        notifications={notifications}
+        onBack={() => setView('main')}
+        onUpdate={loadProfile}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -157,6 +172,26 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
             <h4 className="font-semibold text-gray-800">Профиль семьи</h4>
             <p className="text-xs text-gray-500">
               {family ? 'Управление семейным профилем' : 'Создать или присоединиться к семье'}
+            </p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setView('notifications')}
+          className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-orange-200 transition-all flex items-center gap-4"
+        >
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center relative">
+            <Bell className="w-6 h-6 text-blue-600" />
+            {notifications.filter((n) => !n.is_read).length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                {notifications.filter((n) => !n.is_read).length}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 text-left">
+            <h4 className="font-semibold text-gray-800">Уведомления</h4>
+            <p className="text-xs text-gray-500">
+              Заявки на вступление, ответы на запросы
             </p>
           </div>
         </button>
@@ -1362,6 +1397,170 @@ function FamilyProfileView({
             </div>
           </motion.div>
         </motion.div>
+      )}
+    </div>
+  );
+}
+
+function NotificationsView({
+  notifications,
+  onBack,
+  onUpdate,
+}: {
+  notifications: Notification[];
+  onBack: () => void;
+  onUpdate: () => void;
+}) {
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+
+  const handleMarkAsRead = async (notificationId: number) => {
+    try {
+      await api.updateNotifications({ notification_id: notificationId });
+      onUpdate();
+    } catch (error: any) {
+      console.error('Ошибка обновления уведомления:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await api.updateNotifications({ mark_all_read: true });
+      onUpdate();
+    } catch (error: any) {
+      console.error('Ошибка обновления уведомлений:', error);
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'swipe_request':
+        return '🍽️';
+      case 'swipe_response':
+        return '✅';
+      case 'family_join_request':
+        return '👋';
+      case 'family_join_response':
+        return '👨‍👩‍👧‍👦';
+      default:
+        return '📩';
+    }
+  };
+
+  const getNotificationColor = (type: string, isRead: boolean) => {
+    if (isRead) return 'bg-gray-50 border-gray-200';
+    switch (type) {
+      case 'swipe_request':
+        return 'bg-orange-50 border-orange-200';
+      case 'swipe_response':
+        return 'bg-green-50 border-green-200';
+      case 'family_join_request':
+        return 'bg-purple-50 border-purple-200';
+      case 'family_join_response':
+        return 'bg-blue-50 border-blue-200';
+      default:
+        return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <h2 className="text-xl font-bold text-gray-800">Уведомления</h2>
+        {unreadCount > 0 && (
+          <span className="px-2.5 py-1 text-xs font-semibold text-white bg-red-500 rounded-full">
+            {unreadCount}
+          </span>
+        )}
+      </div>
+
+      {unreadCount > 0 && (
+        <button
+          onClick={handleMarkAllAsRead}
+          className="w-full py-2.5 bg-orange-50 text-orange-600 font-medium rounded-xl hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
+        >
+          <Check className="w-4 h-4" />
+          Прочитать все
+        </button>
+      )}
+
+      {notifications.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Bell className="w-10 h-10 text-gray-300" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-1">Нет уведомлений</h3>
+          <p className="text-sm text-gray-500">
+            Когда вам придут запросы или ответы, они появятся здесь
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {notifications.map((notification) => (
+            <motion.div
+              key={notification.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-4 rounded-2xl border-2 transition-all ${getNotificationColor(notification.type, notification.is_read)}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">{getNotificationIcon(notification.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">{notification.from_user_avatar}</span>
+                    <span className="text-sm font-medium text-gray-800">{notification.from_user_name}</span>
+                    {!notification.is_read && (
+                      <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                    )}
+                  </div>
+                  <p className={`text-sm ${!notification.is_read ? 'text-gray-700 font-medium' : 'text-gray-600'}`}>
+                    {notification.message}
+                  </p>
+                  {notification.sender_message && (
+                    <p className="text-xs text-pink-600 italic mt-1">💌 "{notification.sender_message}"</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    {new Date(notification.created_at).toLocaleTimeString('ru-RU', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+
+                  {/* Action buttons */}
+                  {notification.type === 'family_join_request' && !notification.is_read && (
+                    <button
+                      onClick={() => {
+                        handleMarkAsRead(notification.id);
+                        setSelectedNotification(notification);
+                      }}
+                      className="mt-3 px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-xl hover:bg-purple-600 transition-colors flex items-center gap-1.5"
+                    >
+                      Рассмотреть
+                      <ArrowLeft className="w-4 h-4 rotate-180" />
+                    </button>
+                  )}
+
+                  {notification.type === 'family_join_response' && !notification.is_read && (
+                    <button
+                      onClick={() => {
+                        handleMarkAsRead(notification.id);
+                        onUpdate();
+                      }}
+                      className="mt-3 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-xl hover:bg-blue-600 transition-colors flex items-center gap-1.5"
+                    >
+                      Перейти в профиль семьи
+                      <ArrowLeft className="w-4 h-4 rotate-180" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       )}
     </div>
   );
