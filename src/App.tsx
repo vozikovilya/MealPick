@@ -14,9 +14,10 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { FamilyScreen } from './components/FamilyScreen';
 import { ToastNotifications, ToastNotification } from './components/ToastNotifications';
 import { UIDemo } from './components/UIDemo';
-import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User, Users } from 'lucide-react';
+import { AllComponentsDemo } from './components/AllComponentsDemo';
+import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User, Users, Palette } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile' | 'family' | 'ui-demo';
+type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile' | 'family' | 'ui-demo' | 'all-components';
 
 function App() {
   // Восстанавливаем сохранённый экран из localStorage
@@ -264,12 +265,31 @@ function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setScreen('ui-demo')}
-              className="p-2 rounded-full hover:bg-orange-50 transition-colors"
+              className={`p-2 rounded-full transition-all ${
+                screen === 'ui-demo'
+                  ? 'bg-gradient-to-br from-orange-100 to-amber-100 shadow-md shadow-orange-200'
+                  : 'hover:bg-orange-50'
+              }`}
               title="UI Library Demo"
             >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-5 h-5 transition-colors ${
+                screen === 'ui-demo' ? 'text-orange-600' : 'text-gray-600'
+              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
               </svg>
+            </button>
+            <button
+              onClick={() => setScreen('all-components')}
+              className={`p-2 rounded-full transition-all ${
+                screen === 'all-components'
+                  ? 'bg-gradient-to-br from-purple-100 to-pink-100 shadow-md shadow-purple-200'
+                  : 'hover:bg-purple-50'
+              }`}
+              title="Все компоненты"
+            >
+              <Palette className={`w-5 h-5 transition-colors ${
+                screen === 'all-components' ? 'text-purple-600' : 'text-gray-600'
+              }`} />
             </button>
             <button
               onClick={() => setScreen('notifications')}
@@ -382,6 +402,9 @@ function App() {
             )}
             {screen === 'ui-demo' && (
               <UIDemo />
+            )}
+            {screen === 'all-components' && (
+              <AllComponentsDemo />
             )}
           </motion.div>
         </AnimatePresence>
