@@ -95,9 +95,20 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
 
   if (recipes.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="text-6xl mb-4">🍽️</div>
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">Пока нет блюд</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="text-center py-16"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+          className="w-24 h-24 bg-gradient-to-br from-orange-100 to-amber-100 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <span className="text-5xl">🍽️</span>
+        </motion.div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Пока нет блюд</h2>
         <p className="text-gray-500 mb-6">Добавьте свои любимые блюда, чтобы потом спросить партнёра!</p>
         <button
           onClick={onAddRecipe}
@@ -106,7 +117,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           <Plus className="w-5 h-5" />
           Создать новое блюдо
         </button>
-      </div>
+      </motion.div>
     );
   }
 

@@ -168,7 +168,11 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-6"
+    >
       {/* Header */}
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-bold text-gray-800">
@@ -544,6 +548,6 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
       >
         {editRecipe ? 'Сохранить изменения' : 'Сохранить блюдо'}
       </button>
-    </div>
+    </motion.div>
   );
 }

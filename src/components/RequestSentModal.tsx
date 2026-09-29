@@ -62,29 +62,29 @@ export function RequestSentModal({ isOpen, onClose, sentToInfo }: RequestSentMod
               {sentToInfo && (
                 <div className="mb-4">
                   {sentToInfo.type === 'family' ? (
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                       <div className="flex items-center justify-center gap-2 mb-2">
-                        <Users className="w-5 h-5 text-purple-600" />
-                        <p className="text-sm font-semibold text-purple-800">
+                        <Users className="w-5 h-5 text-orange-500" />
+                        <p className="text-sm font-semibold text-gray-800">
                           Отправлено всей семье
                         </p>
                       </div>
                       {sentToInfo.familyName && (
-                        <p className="text-xs text-purple-600">
-                          Семья: {sentToInfo.familyName}
+                        <p className="text-xs text-gray-600 text-center">
+                          {sentToInfo.familyName}
                         </p>
                       )}
                     </div>
                   ) : (
-                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100">
-                      <p className="text-sm font-semibold text-blue-800 mb-3">
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                      <p className="text-sm font-semibold text-gray-800 mb-3 text-center">
                         Отправлено участникам:
                       </p>
                       <div className="space-y-2">
                         {sentToInfo.members?.map((member, index) => (
-                          <div key={index} className="flex items-center gap-2 bg-white rounded-lg p-2">
+                          <div key={index} className="flex items-center gap-2 bg-white rounded-lg p-2 border border-gray-100">
                             <span className="text-xl">{member.avatar}</span>
-                            <span className="text-sm text-gray-700">{member.name}</span>
+                            <span className="text-sm text-gray-700 font-medium">{member.name}</span>
                           </div>
                         ))}
                       </div>

@@ -200,26 +200,43 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="w-12 h-12 border-b-2 border-orange-500 rounded-full mx-auto mb-4"
+          ></motion.div>
           <p className="text-gray-600">Загрузка уведомлений...</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (notifications.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Inbox className="w-10 h-10 text-gray-300" />
-        </div>
-        <h2 className="text-lg font-semibold text-gray-700 mb-1">Нет уведомлений</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="text-center py-16"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+          className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <Inbox className="w-10 h-10 text-gray-400" />
+        </motion.div>
+        <h2 className="text-lg font-bold text-gray-800 mb-1">Нет уведомлений</h2>
         <p className="text-sm text-gray-500">
           Когда вам придут запросы или ответы, они появятся здесь
         </p>
-      </div>
+      </motion.div>
     );
   }
 

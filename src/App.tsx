@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as api from './services/api';
 import type { Recipe } from './services/api';
 import { RecipeList } from './components/RecipeList';
@@ -261,70 +261,80 @@ function App() {
 
       {/* Content */}
       <main className="max-w-lg mx-auto px-4 py-6 pb-24">
-        {screen === 'recipes' && (
-          <RecipeList
-            onEditRecipe={(recipe) => {
-              setEditingRecipe(recipe);
-              setScreen('edit');
-            }}
-            onAddRecipe={() => setScreen('add')}
-          />
-        )}
-        {screen === 'add' && <AddRecipe onDone={() => setScreen('recipes')} />}
-        {screen === 'edit' && editingRecipe && (
-          <AddRecipe
-            onDone={() => {
-              setEditingRecipe(null);
-              setScreen('recipes');
-            }}
-            editRecipe={editingRecipe}
-          />
-        )}
-        {screen === 'send' && <SendRequest onDone={() => setScreen('recipes')} />}
-        {screen === 'swipe' && activeRequestId && (
-          <SwipeSelector
-            requestId={activeRequestId}
-            onDone={() => {
-              setScreen('notifications');
-              setActiveRequestId(null);
-            }}
-          />
-        )}
-        {screen === 'notifications' && (
-          <Notifications
-            onOpenSwipe={handleOpenSwipe}
-            onViewResults={handleViewResults}
-            onViewDetails={handleViewDetails}
-            onUnreadCountChange={setUnreadCount}
-          />
-        )}
-        {screen === 'results' && activeRequestId && (
-          <SelectedResults
-            requestId={activeRequestId}
-            onBack={() => setScreen('notifications')}
-          />
-        )}
-        {screen === 'details' && activeRequestId && (
-          <SwipeRequestDetails
-            requestId={activeRequestId}
-            onBack={() => setScreen('notifications')}
-          />
-        )}
-        {screen === 'profile' && (
-          <ProfileScreen
-            key={profileKey}
-            onBack={() => setScreen('recipes')}
-            onLogout={handleLogout}
-          />
-        )}
-        {screen === 'family' && (
-          <FamilyScreen
-            onBack={() => setScreen('recipes')}
-          />
-        )}
-        {screen === 'ui-demo' && (
-          <UIDemo />
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={screen}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
+            {screen === 'recipes' && (
+              <RecipeList
+                onEditRecipe={(recipe) => {
+                  setEditingRecipe(recipe);
+                  setScreen('edit');
+                }}
+                onAddRecipe={() => setScreen('add')}
+              />
+            )}
+            {screen === 'add' && <AddRecipe onDone={() => setScreen('recipes')} />}
+            {screen === 'edit' && editingRecipe && (
+              <AddRecipe
+                onDone={() => {
+                  setEditingRecipe(null);
+                  setScreen('recipes');
+                }}
+                editRecipe={editingRecipe}
+              />
+            )}
+            {screen === 'send' && <SendRequest onDone={() => setScreen('recipes')} />}
+            {screen === 'swipe' && activeRequestId && (
+              <SwipeSelector
+                requestId={activeRequestId}
+                onDone={() => {
+                  setScreen('notifications');
+                  setActiveRequestId(null);
+                }}
+              />
+            )}
+            {screen === 'notifications' && (
+              <Notifications
+                onOpenSwipe={handleOpenSwipe}
+                onViewResults={handleViewResults}
+                onViewDetails={handleViewDetails}
+                onUnreadCountChange={setUnreadCount}
+              />
+            )}
+            {screen === 'results' && activeRequestId && (
+              <SelectedResults
+                requestId={activeRequestId}
+                onBack={() => setScreen('notifications')}
+              />
+            )}
+            {screen === 'details' && activeRequestId && (
+              <SwipeRequestDetails
+                requestId={activeRequestId}
+                onBack={() => setScreen('notifications')}
+              />
+            )}
+            {screen === 'profile' && (
+              <ProfileScreen
+                key={profileKey}
+                onBack={() => setScreen('recipes')}
+                onLogout={handleLogout}
+              />
+            )}
+            {screen === 'family' && (
+              <FamilyScreen
+                onBack={() => setScreen('recipes')}
+              />
+            )}
+            {screen === 'ui-demo' && (
+              <UIDemo />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}

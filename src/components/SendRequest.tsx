@@ -162,12 +162,20 @@ export function SendRequest({ onDone }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="w-12 h-12 border-b-2 border-orange-500 rounded-full mx-auto mb-4"
+          ></motion.div>
           <p className="text-gray-600">Загрузка...</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
