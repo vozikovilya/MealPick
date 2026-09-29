@@ -12,9 +12,10 @@ import { SwipeRequestDetails } from './components/SwipeRequestDetails';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ToastNotifications, ToastNotification } from './components/ToastNotifications';
+import { UIDemo } from './components/UIDemo';
 import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile';
+type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile' | 'ui-demo';
 
 function App() {
   // Восстанавливаем сохранённый экран из localStorage
@@ -217,6 +218,15 @@ function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setScreen('ui-demo')}
+              className="p-2 rounded-full hover:bg-orange-50 transition-colors"
+              title="UI Library Demo"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </button>
+            <button
               onClick={() => setScreen('notifications')}
               className="relative p-2 rounded-full hover:bg-orange-50 transition-colors"
             >
@@ -305,6 +315,9 @@ function App() {
             onBack={() => setScreen('recipes')}
             onLogout={handleLogout}
           />
+        )}
+        {screen === 'ui-demo' && (
+          <UIDemo />
         )}
       </main>
 

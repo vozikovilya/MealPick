@@ -308,7 +308,7 @@ interface CardProps {
   variant?: CardVariant;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   className?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onClick?: () => void;
 }
 
@@ -891,7 +891,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
 // ============================================================================
 
 interface ProgressProps {
-  value: number; // 0-100
+  value?: number; // 0-100
   variant?: 'default' | 'success' | 'warning' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
@@ -912,7 +912,7 @@ const progressSizes: Record<string, string> = {
 };
 
 export const Progress: React.FC<ProgressProps> = ({
-  value,
+  value = 0,
   variant = 'default',
   size = 'md',
   showLabel = false,
@@ -945,7 +945,7 @@ export const Progress: React.FC<ProgressProps> = ({
 // ============================================================================
 
 interface TagProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   variant?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
   removable?: boolean;
   onRemove?: () => void;
