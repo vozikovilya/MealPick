@@ -1,0 +1,764 @@
+import { useState, useEffect } from 'react';
+import * as api from '../services/api';
+import { Users, ArrowLeft, Edit2, Copy, Check, Trash2, Crown, Link, UserPlus, X, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { User as UserType, Family, FamilyMember, JoinRequest } from '../services/api';
+
+interface Props {
+  onBack: () => void;
+}
+
+export function FamilyScreen({ onBack }: Props) {
+  const [user, setUser] = useState<UserType | null>(null);
+  const [family, setFamily] = useState<Family | null>(null);
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<JoinRequest[]>([]);
+  const [myJoinRequest, setMyJoinRequest] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showJoinRequestSent, setShowJoinRequestSent] = useState(false);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const profileResponse = await api.getProfile();
+      setUser(profileResponse.data.user);
+      
+      const familyResponse = await api.getFamily();
+      if (familyResponse.data.family) {
+        setFamily(familyResponse.data.family);
+        setMembers(familyResponse.data.members);
+        setPendingRequests(familyResponse.data.pendingRequests);
+      } else {
+        setFamily(null);
+        setMembers([]);
+        setPendingRequests([]);
+      }
+      
+      // Загружаем текущий запрос на вступление пользователя
+      try {
+        const myRequestResponse = await api.getMyJoinRequest();
+        setMyJoinRequest(myRequestResponse.data.request);
+      } catch (error) {
+        setMyJoinRequest(null);
+      }
+    } catch (error: any) {
+      console.error('Ошибка загрузки данных:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-gray-600">Ошибка загрузки данных</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-bold text-gray-800">Семья</h2>
+      </div>
+
+      {/* Отображение текущего запроса на вступление */}
+      {myJoinRequest && !family && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-200"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">⏳</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-800 mb-1">Заявка на рассмотрении</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                Вы отправили заявку на вступление в семью <strong>"{myJoinRequest.family_name}"</strong>
+              </p>
+              <p className="text-xs text-gray-500">
+                Ожидайте ответа от главы семьи. Мы уведомим вас о решении.
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-purple-600 font-medium">Заявка активна</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Поп-ап после отправки запроса */}
+      <AnimatePresence>
+        {showJoinRequestSent && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowJoinRequestSent(false)}
+          >
+            <motion.div
+              initial={{ y: 20 }}
+              animate={{ y: 0 }}
+              exit={{ y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+            >
+              <div className="text-center mb-6">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                  className="w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center mx-auto mb-4"
+                >
+                  <span className="text-4xl">📨</span>
+                </motion.div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">Заявка отправлена!</h3>
+                <p className="text-gray-600">
+                  Ваша заявка на вступление в семью успешно отправлена
+                </p>
+              </div>
+
+              <div className="bg-purple-50 rounded-2xl p-4 mb-6">
+                <p className="text-sm text-purple-700 text-center">
+                  Глава семьи рассмотрит вашу заявку и примет решение. Мы уведомим вас о результате.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowJoinRequestSent(false)}
+                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+              >
+                Понятно
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Основной контент */}
+      {family ? (
+        <FamilyView
+          family={family}
+          currentUser={user}
+          members={members}
+          pendingRequests={pendingRequests}
+          onUpdate={loadData}
+        />
+      ) : (
+        <NoFamilyView
+          onJoinRequestSent={() => {
+            setShowJoinRequestSent(true);
+            loadData();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function FamilyView({
+  family,
+  currentUser,
+  members,
+  pendingRequests,
+  onUpdate,
+}: {
+  family: Family;
+  currentUser: UserType;
+  members: FamilyMember[];
+  pendingRequests: JoinRequest[];
+  onUpdate: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [openActionsMenu, setOpenActionsMenu] = useState<number | null>(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState<number | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState(family.name);
+  const [editAvatar, setEditAvatar] = useState(family.avatar);
+  const [editError, setEditError] = useState('');
+
+  const isOwner = family.owner_id === currentUser.id;
+
+  const familyAvatars = ['👨‍👩‍👧‍👦', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👦', '👩‍👦', '👨‍👧', '👩‍👧', '🏠', '❤️'];
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(family.invite_link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Ошибка копирования:', error);
+    }
+  };
+
+  const handleDeleteFamily = async () => {
+    setDeleteError('');
+    try {
+      await api.deleteFamily();
+      window.location.reload();
+    } catch (error: any) {
+      setDeleteError(error.message || 'Ошибка удаления семьи');
+    }
+  };
+
+  const handleRemoveMember = async (memberId: number) => {
+    try {
+      await api.removeFamilyMember(memberId);
+      setShowRemoveConfirm(null);
+      setOpenActionsMenu(null);
+      window.location.reload();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка удаления участника');
+    }
+  };
+
+  const handleAssignRole = async (userId: number, role: string) => {
+    try {
+      await api.assignFamilyRole(userId, role);
+      onUpdate();
+      setOpenActionsMenu(null);
+    } catch (error: any) {
+      alert(error.message || 'Ошибка назначения роли');
+    }
+  };
+
+  const handleRespondToRequest = async (requestId: number, accept: boolean) => {
+    try {
+      await api.respondToJoinRequest(requestId, accept);
+      onUpdate();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка обработки заявки');
+    }
+  };
+
+  const handleUpdateFamily = async () => {
+    if (!editName.trim()) {
+      setEditError('Название семьи обязательно');
+      return;
+    }
+    
+    setEditError('');
+    try {
+      await api.updateFamily({
+        name: editName.trim(),
+        avatar: editAvatar,
+      });
+      setShowEditModal(false);
+      onUpdate();
+    } catch (error: any) {
+      setEditError(error.message || 'Ошибка обновления семьи');
+    }
+  };
+
+  return (
+    <>
+      {/* Family card */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="text-center mb-4">
+          <div className="text-5xl mb-3">{family.avatar}</div>
+          <h3 className="text-lg font-bold text-gray-800">{family.name}</h3>
+          {family.description && <p className="text-sm text-gray-500 mt-1">{family.description}</p>}
+        </div>
+        
+        {isOwner && (
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="w-full py-2.5 bg-orange-50 text-orange-600 font-medium rounded-xl hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
+          >
+            <Edit2 className="w-4 h-4" />
+            Редактировать семью
+          </button>
+        )}
+      </div>
+
+      {/* Pending Requests (for owner) */}
+      {isOwner && pendingRequests.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-200 space-y-3">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-orange-500" />
+            Заявки на вступление ({pendingRequests.length})
+          </h3>
+          <div className="space-y-2">
+            {pendingRequests.map((request) => (
+              <div key={request.id} className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+                <span className="text-2xl">{request.avatar}</span>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-800">{request.name}</p>
+                  <p className="text-xs text-gray-500">{request.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleRespondToRequest(request.id, true)}
+                    className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors"
+                  >
+                    Принять
+                  </button>
+                  <button
+                    onClick={() => handleRespondToRequest(request.id, false)}
+                    className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Отклонить
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Members */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+        <h3 className="text-sm font-semibold text-gray-700">Участники ({members.length})</h3>
+        <div className="space-y-2">
+          {members
+            .sort((a, b) => {
+              if (a.role === 'owner') return -1;
+              if (b.role === 'owner') return 1;
+              if (a.role === 'chef' && b.role !== 'chef') return -1;
+              if (b.role === 'chef' && a.role !== 'chef') return 1;
+              return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
+            })
+            .map((member) => {
+              const isCurrentUser = member.id === currentUser.id;
+              const canAssignRole = isOwner && member.id !== currentUser.id;
+              
+              return (
+                <div 
+                  key={member.id} 
+                  className={`flex items-center gap-3 p-3 rounded-xl border ${
+                    isCurrentUser 
+                      ? 'bg-orange-50 border-orange-200' 
+                      : 'bg-white border-gray-100'
+                  }`}
+                >
+                  <span className="text-2xl">{member.avatar}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-800">{member.name}</p>
+                      {isCurrentUser && (
+                        <span className="text-xs text-orange-600 font-medium">(Вы)</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">{member.email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {member.role === 'owner' && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">
+                          <Crown className="w-3 h-3" />
+                          <span>Глава семьи</span>
+                        </div>
+                      )}
+                      {member.role === 'chef' && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                          <span>👨‍🍳</span>
+                          <span>Поварушка</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {canAssignRole && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenActionsMenu(openActionsMenu === member.id ? null : member.id)}
+                        className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors flex items-center gap-1"
+                      >
+                        Действия
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                      
+                      {openActionsMenu === member.id && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-10">
+                          <button
+                            onClick={() => {
+                              const newRole = member.role === 'chef' ? 'member' : 'chef';
+                              handleAssignRole(member.id, newRole);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                          >
+                            <span>{member.role === 'chef' ? '🚫' : '👨‍🍳'}</span>
+                            <span>{member.role === 'chef' ? 'Убрать роль Поварушки' : 'Назначить Поварушкой'}</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowRemoveConfirm(member.id);
+                              setOpenActionsMenu(null);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Удалить из семьи</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Invite link */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
+        <label className="text-sm font-medium text-gray-700">Ссылка для приглашения</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={family.invite_link}
+            readOnly
+            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-600"
+          />
+          <button
+            onClick={handleCopyLink}
+            className="px-4 py-3 bg-purple-100 text-purple-600 rounded-xl hover:bg-purple-200 transition-colors flex items-center gap-2"
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? 'OK' : 'Копировать'}
+          </button>
+        </div>
+        <button
+          onClick={() => {
+            if (navigator.share) {
+              navigator.share({
+                title: `Присоединяйся к семье "${family.name}" в MealPick!`,
+                text: `Присоединяйся к нашей семье в MealPick и выбирай блюда вместе!`,
+                url: family.invite_link,
+              });
+            } else {
+              handleCopyLink();
+            }
+          }}
+          className="w-full py-3 bg-purple-50 text-purple-600 font-medium rounded-xl hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
+        >
+          📤 Поделиться в соцсетях
+        </button>
+      </div>
+
+      {/* Delete Family Section (for owner) */}
+      {isOwner && (
+        <div className="bg-white rounded-2xl border border-red-200 p-5 space-y-4">
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-5 h-5" />
+              Удалить профиль семьи
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-sm text-red-800 font-medium mb-1">Вы уверены?</p>
+                <p className="text-xs text-red-600">Профиль семьи будет удалён для всех участников.</p>
+              </div>
+              
+              {deleteError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-600">{deleteError}</p>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteError('');
+                  }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleDeleteFamily}
+                  className="flex-1 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit Family Modal */}
+      {showEditModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowEditModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Редактировать семью</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Аватар семьи</label>
+                <div className="flex gap-2 flex-wrap">
+                  {familyAvatars.map((a) => (
+                    <button
+                      key={a}
+                      onClick={() => setEditAvatar(a)}
+                      className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                        editAvatar === a ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Название семьи</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Например: Семья Ивановых"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                  maxLength={100}
+                />
+              </div>
+
+              {editError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-600">{editError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleUpdateFamily}
+                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Remove Member Confirmation Modal */}
+      {showRemoveConfirm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowRemoveConfirm(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Удалить участника</h3>
+              <button
+                onClick={() => setShowRemoveConfirm(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Вы уверены, что хотите удалить этого участника из семьи "{family.name}"?
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRemoveConfirm(null)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => handleRemoveMember(showRemoveConfirm)}
+                className="flex-1 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
+              >
+                Удалить
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </>
+  );
+}
+
+function NoFamilyView({ onJoinRequestSent }: { onJoinRequestSent: () => void }) {
+  const [joinLink, setJoinLink] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createAvatar, setCreateAvatar] = useState('👨‍👩‍👧‍👦');
+  const [createDescription, setCreateDescription] = useState('');
+
+  const familyAvatars = ['👨‍👩‍👧‍👦', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👦', '👩‍👦', '👨‍👧', '👩‍👧', '🏠', '❤️'];
+
+  const handleRequestJoin = async () => {
+    if (!joinLink.trim()) return;
+    setJoinError('');
+    try {
+      await api.joinFamily(joinLink.trim());
+      setJoinLink('');
+      onJoinRequestSent();
+    } catch (error: any) {
+      setJoinError(error.message || 'Ошибка отправки заявки');
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!createName.trim()) return;
+    try {
+      await api.createFamily({ name: createName, avatar: createAvatar, description: createDescription });
+      onJoinRequestSent();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка создания семьи');
+    }
+  };
+
+  return (
+    <>
+      {/* Join Family */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+            <Link className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Присоединиться к семье</h3>
+            <p className="text-xs text-gray-500">Вставьте ссылку-приглашение</p>
+          </div>
+        </div>
+        
+        <input
+          type="text"
+          value={joinLink}
+          onChange={(e) => setJoinLink(e.target.value)}
+          placeholder="https://mealspick.app/join/..."
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
+        />
+        
+        {joinError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-sm text-red-600">{joinError}</p>
+          </div>
+        )}
+        
+        <button
+          onClick={handleRequestJoin}
+          disabled={!joinLink.trim()}
+          className="w-full py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Отправить заявку
+        </button>
+      </div>
+
+      {/* Create Family */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+            <Users className="w-6 h-6 text-purple-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Создать новую семью</h3>
+            <p className="text-xs text-gray-500">Станьте главой семьи</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Аватар семьи</label>
+          <div className="flex gap-2 flex-wrap">
+            {familyAvatars.map((a) => (
+              <button
+                key={a}
+                onClick={() => setCreateAvatar(a)}
+                className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                  createAvatar === a ? 'bg-purple-100 ring-2 ring-purple-400' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Название семьи</label>
+          <input
+            type="text"
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            placeholder="Например: Семья Ивановых"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Описание (необязательно)</label>
+          <textarea
+            value={createDescription}
+            onChange={(e) => setCreateDescription(e.target.value)}
+            placeholder="О вашей семье..."
+            rows={3}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
+          />
+        </div>
+
+        <button
+          onClick={handleCreate}
+          disabled={!createName.trim()}
+          className="w-full py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+          Создать профиль семьи
+        </button>
+      </div>
+    </>
+  );
+}

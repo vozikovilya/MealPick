@@ -11,11 +11,12 @@ import { SelectedResults } from './components/SelectedResults';
 import { SwipeRequestDetails } from './components/SwipeRequestDetails';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
+import { FamilyScreen } from './components/FamilyScreen';
 import { ToastNotifications, ToastNotification } from './components/ToastNotifications';
 import { UIDemo } from './components/UIDemo';
-import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
+import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User, Users } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile' | 'ui-demo';
+type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile' | 'family' | 'ui-demo';
 
 function App() {
   // Восстанавливаем сохранённый экран из localStorage
@@ -316,6 +317,11 @@ function App() {
             onLogout={handleLogout}
           />
         )}
+        {screen === 'family' && (
+          <FamilyScreen
+            onBack={() => setScreen('recipes')}
+          />
+        )}
         {screen === 'ui-demo' && (
           <UIDemo />
         )}
@@ -346,19 +352,17 @@ function App() {
             color="green"
           />
           <NavButton
-            active={screen === 'notifications'}
-            onClick={() => setScreen('notifications')}
-            icon={<Bell className="w-5 h-5" />}
-            label="Запросы"
-            badge={unreadCount}
+            active={screen === 'family'}
+            onClick={() => setScreen('family')}
+            icon={<Users className="w-5 h-5" />}
+            label="Семья"
             color="purple"
-            key={`nav-notifications-${unreadCount}`}
           />
           <NavButton
             active={screen === 'profile'}
             onClick={() => setScreen('profile')}
             icon={<User className="w-5 h-5" />}
-            label="Профиль"
+            label="Я"
             color="pink"
           />
         </div>

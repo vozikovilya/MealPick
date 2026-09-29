@@ -238,6 +238,12 @@ export async function joinFamily(inviteLink: string): Promise<any> {
   });
 }
 
+export async function getMyJoinRequest(): Promise<any> {
+  return apiRequest('/family/my-request.php', {
+    method: 'GET',
+  });
+}
+
 export async function respondToJoinRequest(requestId: number, accept: boolean): Promise<any> {
   return apiRequest('/family/respond-request.php', {
     method: 'POST',
