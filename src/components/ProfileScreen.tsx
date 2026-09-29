@@ -4,15 +4,12 @@ import { User, ArrowLeft, Edit2, LogOut, Check, Trash2, Mail, Lock, AtSign, X } 
 import { motion, AnimatePresence } from 'framer-motion';
 import type { User as UserType, Family } from '../services/api';
 
-type ProfileView = 'main' | 'personal';
-
 interface Props {
   onBack: () => void;
   onLogout: () => void;
 }
 
 export function ProfileScreen({ onBack, onLogout }: Props) {
-  const [view, setView] = useState<ProfileView>('main');
   const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,10 +63,6 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
         </div>
       </motion.div>
     );
-  }
-
-  if (view === 'personal') {
-    return <PersonalProfile user={user} onUpdate={loadProfile} onBack={() => setView('main')} onLogout={onLogout} />;
   }
 
   return (
@@ -147,75 +140,122 @@ function PersonalProfile({
     }
   };
 
+  const [isEditing, setIsEditing] = useState(false);
+
   return (
     <div className="space-y-5">
+      {/* Заголовок */}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="flex items-center justify-center w-7 h-7 rounded-xl hover:bg-orange-50 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <h2 className="text-xl font-bold text-gray-800">Личный профиль</h2>
+        <h2 className="text-xl font-bold text-gray-800">Я</h2>
       </div>
 
-      {/* Основная информация */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
-        {/* Avatar */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Аватар</label>
-          <div className="flex gap-2 flex-wrap">
-            {avatars.map((a) => (
-              <button
-                key={a}
-                onClick={() => setAvatar(a)}
-                className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
-                  avatar === a ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                {a}
-              </button>
-            ))}
+      {/* Карточка профиля */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        {!isEditing ? (
+          /* Режим просмотра */
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center text-5xl shadow-sm">
+                {user.avatar}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-gray-800 mb-1">{user.name}</h3>
+                <p className="text-sm text-gray-500 mb-2">@{user.username}</p>
+                {user.description && (
+                  <p className="text-sm text-gray-600 leading-relaxed">{user.description}</p>
+                )}
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setIsEditing(true)}
+              className="w-full py-3 bg-orange-50 text-orange-600 font-medium rounded-xl hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
+            >
+              <Edit2 className="w-4 h-4" />
+              Редактировать
+            </button>
           </div>
-        </div>
+        ) : (
+          /* Режим редактирования */
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold text-gray-800">Редактирование профиля</h3>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setName(user.name);
+                  setAvatar(user.avatar);
+                  setDescription(user.description || '');
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
 
-        {/* Name */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Имя</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
-          />
-        </div>
+            {/* Avatar */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Аватар</label>
+              <div className="flex gap-2 flex-wrap">
+                {avatars.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => setAvatar(a)}
+                    className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                      avatar === a ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Description */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">О себе</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Расскажите о себе..."
-            rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
-          />
-        </div>
+            {/* Name */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Имя</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+              />
+            </div>
 
-        {/* Save Profile */}
-        <button
-          onClick={handleSave}
-          className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
-        >
-          {saved ? (
-            <>
-              <Check className="w-5 h-5" />
-              Сохранено!
-            </>
-          ) : (
-            <>
-              <Edit2 className="w-5 h-5" />
-              Сохранить изменения
-            </>
-          )}
-        </button>
+            {/* Description */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">О себе</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Расскажите о себе..."
+                rows={3}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
+              />
+            </div>
+
+            {/* Save Profile */}
+            <button
+              onClick={async () => {
+                await handleSave();
+                setIsEditing(false);
+              }}
+              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
+            >
+              {saved ? (
+                <>
+                  <Check className="w-5 h-5" />
+                  Сохранено!
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  Сохранить изменения
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Данные для входа */}
