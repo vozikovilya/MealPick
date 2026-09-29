@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import * as api from '../services/api';
-import { Users, ArrowLeft, Edit2, Copy, Check, Trash2, Crown, Link, UserPlus, X, ChevronDown } from 'lucide-react';
+import { Users, ArrowLeft, Edit2, Copy, Check, Trash2, Crown, Link, UserPlus, X, ChevronDown, LogOut, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { User as UserType, Family, FamilyMember, JoinRequest } from '../services/api';
 import { JoinRequestPopup } from './JoinRequestPopup';
 import { JoinResponsePopup } from './JoinResponsePopup';
+import { JoinRejectedPopup } from './JoinRejectedPopup';
 import { FamilyDeletedPopup } from './FamilyDeletedPopup';
+import { LeaveFamilyPopup } from './LeaveFamilyPopup';
+import { RemovedFromFamilyPopup } from './RemovedFromFamilyPopup';
 
 interface Props {
   onBack: () => void;
@@ -25,8 +28,16 @@ export function FamilyScreen({ onBack }: Props) {
   const [currentJoinRequest, setCurrentJoinRequest] = useState<JoinRequest | null>(null);
   const [showJoinResponsePopup, setShowJoinResponsePopup] = useState(false);
   const [joinResponseAccepted, setJoinResponseAccepted] = useState(false);
+  const [showJoinRejectedPopup, setShowJoinRejectedPopup] = useState(false);
+  const [rejectedFamilyName, setRejectedFamilyName] = useState('');
   const [showFamilyDeletedPopup, setShowFamilyDeletedPopup] = useState(false);
   const [deletedFamilyName, setDeletedFamilyName] = useState('');
+  const [showLeaveFamilyPopup, setShowLeaveFamilyPopup] = useState(false);
+  const [leftFamilyName, setLeftFamilyName] = useState('');
+  const [showRemovedFromFamilyPopup, setShowRemovedFromFamilyPopup] = useState(false);
+  const [removedFromFamilyName, setRemovedFromFamilyName] = useState('');
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaveError, setLeaveError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -108,9 +119,9 @@ export function FamilyScreen({ onBack }: Props) {
             setFamily(profileResponse.data.family);
             setMyJoinRequest(null);
           } else {
-            // Заявка отклонена
-            setJoinResponseAccepted(false);
-            setShowJoinResponsePopup(true);
+            // Заявка отклонена - показываем попап отклонения
+            setRejectedFamilyName(myJoinRequest.family_name || 'Семья');
+            setShowJoinRejectedPopup(true);
             setMyJoinRequest(null);
           }
         }
@@ -136,6 +147,18 @@ export function FamilyScreen({ onBack }: Props) {
           setShowFamilyDeletedPopup(true);
           setFamily(null);
           setMembers([]);
+        } else {
+          // Проверяем, остался ли пользователь в семье
+          const currentMembers = familyResponse.data.members || [];
+          const isStillMember = currentMembers.some((m: any) => m.id === user?.id);
+          
+          if (!isStillMember) {
+            // Пользователь был удалён из семьи
+            setRemovedFromFamilyName(family.name);
+            setShowRemovedFromFamilyPopup(true);
+            setFamily(null);
+            setMembers([]);
+          }
         }
       } catch (error) {
         console.error('Ошибка проверки семьи:', error);
@@ -273,6 +296,12 @@ export function FamilyScreen({ onBack }: Props) {
           members={members}
           pendingRequests={pendingRequests}
           onUpdate={loadData}
+          onLeaveFamily={(familyName: string) => {
+            setLeftFamilyName(familyName);
+            setShowLeaveFamilyPopup(true);
+            setFamily(null);
+            setMembers([]);
+          }}
         />
       ) : (
         <NoFamilyView
@@ -347,6 +376,42 @@ export function FamilyScreen({ onBack }: Props) {
           familyName={deletedFamilyName}
         />
       )}
+
+      {/* Попап выхода из семьи */}
+      {showLeaveFamilyPopup && (
+        <LeaveFamilyPopup
+          isOpen={showLeaveFamilyPopup}
+          onClose={() => {
+            setShowLeaveFamilyPopup(false);
+            setLeftFamilyName('');
+          }}
+          familyName={leftFamilyName}
+        />
+      )}
+
+      {/* Попап удаления из семьи */}
+      {showRemovedFromFamilyPopup && (
+        <RemovedFromFamilyPopup
+          isOpen={showRemovedFromFamilyPopup}
+          onClose={() => {
+            setShowRemovedFromFamilyPopup(false);
+            setRemovedFromFamilyName('');
+          }}
+          familyName={removedFromFamilyName}
+        />
+      )}
+
+      {/* Попап отклонения заявки */}
+      {showJoinRejectedPopup && (
+        <JoinRejectedPopup
+          isOpen={showJoinRejectedPopup}
+          onClose={() => {
+            setShowJoinRejectedPopup(false);
+            setRejectedFamilyName('');
+          }}
+          familyName={rejectedFamilyName}
+        />
+      )}
     </div>
   );
 }
@@ -357,12 +422,14 @@ function FamilyView({
   members,
   pendingRequests,
   onUpdate,
+  onLeaveFamily,
 }: {
   family: Family;
   currentUser: UserType;
   members: FamilyMember[];
   pendingRequests: JoinRequest[];
   onUpdate: () => void;
+  onLeaveFamily: (familyName: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -374,6 +441,9 @@ function FamilyView({
   const [editName, setEditName] = useState(family.name);
   const [editAvatar, setEditAvatar] = useState(family.avatar);
   const [editError, setEditError] = useState('');
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaveError, setLeaveError] = useState('');
+  const [showTransferConfirm, setShowTransferConfirm] = useState<number | null>(null);
 
   const isOwner = family.owner_id === currentUser.id;
 
@@ -445,6 +515,28 @@ function FamilyView({
       setOpenActionsMenu(null);
     } catch (error: any) {
       alert(error.message || 'Ошибка назначения роли');
+    }
+  };
+
+  const handleLeaveFamily = async () => {
+    setLeaveError('');
+    try {
+      const familyName = family.name;
+      await api.leaveFamily();
+      setShowLeaveConfirm(false);
+      onLeaveFamily(familyName);
+    } catch (error: any) {
+      setLeaveError(error.message || 'Ошибка выхода из семьи');
+    }
+  };
+
+  const handleTransferOwnership = async (newOwnerId: number) => {
+    try {
+      await api.transferOwnership(newOwnerId);
+      setOpenActionsMenu(null);
+      onUpdate();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка передачи роли');
     }
   };
 
@@ -595,7 +687,7 @@ function FamilyView({
                       </button>
                       
                       {openActionsMenu === member.id && (
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-10">
+                        <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-10">
                           <button
                             onClick={() => {
                               const newRole = member.role === 'chef' ? 'member' : 'chef';
@@ -605,6 +697,16 @@ function FamilyView({
                           >
                             <span>{member.role === 'chef' ? '🚫' : '👨‍🍳'}</span>
                             <span>{member.role === 'chef' ? 'Убрать роль Поварушки' : 'Назначить Поварушкой'}</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowTransferConfirm(member.id);
+                              setOpenActionsMenu(null);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-yellow-600 hover:bg-yellow-50 transition-colors flex items-center gap-2"
+                          >
+                            <Crown className="w-4 h-4" />
+                            <span>Сделать главным</span>
                           </button>
                           <button
                             onClick={() => {
@@ -655,6 +757,16 @@ function FamilyView({
       {/* Delete Family Section (for owner) */}
       {isOwner && (
         <div className="bg-white rounded-2xl border border-red-200 p-5 space-y-4">
+          {/* Напоминалка для главы */}
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-yellow-800">
+                <strong>Внимание:</strong> Как глава семьи, вы не можете покинуть семью. Сначала удалите профиль семьи или передайте роль главы другому участнику.
+              </p>
+            </div>
+          </div>
+
           {!showDeleteConfirm ? (
             <button
               onClick={() => setShowDeleteConfirm(true)}
@@ -691,6 +803,52 @@ function FamilyView({
                   className="flex-1 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
                 >
                   Удалить
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Leave Family Section (for non-owners) */}
+      {!isOwner && (
+        <div className="bg-white rounded-2xl border border-orange-200 p-5 space-y-4">
+          {!showLeaveConfirm ? (
+            <button
+              onClick={() => setShowLeaveConfirm(true)}
+              className="w-full py-3 bg-orange-50 text-orange-600 font-medium rounded-xl hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              Выйти из семьи
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                <p className="text-sm text-orange-800 font-medium mb-1">Вы уверены?</p>
+                <p className="text-xs text-orange-600">Вы покинете семью "{family.name}" и потеряете доступ к общему меню.</p>
+              </div>
+              
+              {leaveError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-sm text-red-600">{leaveError}</p>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowLeaveConfirm(false);
+                    setLeaveError('');
+                  }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleLeaveFamily}
+                  className="flex-1 py-3 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition-colors"
+                >
+                  Выйти
                 </button>
               </div>
             </div>
@@ -821,6 +979,64 @@ function FamilyView({
                 className="flex-1 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
               >
                 Удалить
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Transfer Ownership Confirmation Modal */}
+      {showTransferConfirm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowTransferConfirm(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Передать роль главы</h3>
+              <button
+                onClick={() => setShowTransferConfirm(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Внимание:</strong> Вы передаёте роль главы семьи другому участнику. После этого вы станете обычным участником и не сможете управлять семьёй.
+              </p>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Вы уверены, что хотите передать роль главы семьи участнику <strong>{members.find(m => m.id === showTransferConfirm)?.name}</strong>?
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowTransferConfirm(null)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  handleTransferOwnership(showTransferConfirm);
+                  setShowTransferConfirm(null);
+                }}
+                className="flex-1 py-3 bg-yellow-500 text-white font-medium rounded-xl hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Crown className="w-4 h-4" />
+                Передать
               </button>
             </div>
           </motion.div>

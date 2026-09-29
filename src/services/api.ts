@@ -279,6 +279,19 @@ export async function assignFamilyRole(userId: number, role: string): Promise<an
   });
 }
 
+export async function leaveFamily(): Promise<any> {
+  return apiRequest('/family/leave.php', {
+    method: 'POST',
+  });
+}
+
+export async function transferOwnership(newOwnerId: number): Promise<any> {
+  return apiRequest('/family/transfer-ownership.php', {
+    method: 'POST',
+    body: JSON.stringify({ new_owner_id: newOwnerId }),
+  });
+}
+
 export async function deleteFamily(): Promise<any> {
   return apiRequest('/family/delete.php', {
     method: 'DELETE',
