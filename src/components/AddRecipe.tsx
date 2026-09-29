@@ -3,22 +3,12 @@ import * as api from '../services/api';
 import type { Ingredient, CookingStep, Recipe } from '../services/api';
 import { ArrowLeft, Plus, X, Image as ImageIcon, Upload, Trash2, Link2, ChefHat, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MEAL_TYPES } from '../constants';
 
 interface Props {
   onDone: () => void;
   editRecipe?: Recipe | null;
 }
-
-// Стандартные категории блюд
-const mealTypes = [
-  { id: 'breakfast', name: 'Завтрак', emoji: '🌅' },
-  { id: 'lunch', name: 'Обед', emoji: '☀️' },
-  { id: 'dinner', name: 'Ужин', emoji: '🌙' },
-  { id: 'sides', name: 'Гарниры', emoji: '🥔' },
-  { id: 'desserts', name: 'Десерты', emoji: '🍰' },
-  { id: 'drinks', name: 'Напитки', emoji: '🥤' },
-  { id: 'sauces', name: 'Соусы', emoji: '🥫' },
-];
 
 export function AddRecipe({ onDone, editRecipe }: Props) {
   // Form state
@@ -26,7 +16,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
   const [description, setDescription] = useState('');
   const [imageUrls, setImageUrls] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
-  const [mealType, setMealType] = useState(mealTypes[0]?.id || 'breakfast');
+  const [mealType, setMealType] = useState(MEAL_TYPES[0]?.id || 'breakfast');
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [cookingSteps, setCookingSteps] = useState<CookingStep[]>([]);
   const [showMealTypeInput, setShowMealTypeInput] = useState(false);
@@ -313,7 +303,7 @@ export function AddRecipe({ onDone, editRecipe }: Props) {
         
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            {mealTypes.map((option) => (
+            {MEAL_TYPES.map((option) => (
               <button
                 key={option.id}
                 onClick={() => setMealType(option.id)}

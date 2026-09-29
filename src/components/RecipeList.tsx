@@ -184,7 +184,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
         <div className="space-y-4 py-2 px-1">
           {/* Все категории */}
           {Object.entries(allCategories).map(([type, categoryRecipes]) => {
-            const mealType = mealTypes.find((m) => m.id === type);
+            const mealType = MEAL_TYPES.find((m) => m.id === type);
             return (
               <div key={type}>
                 {/* Collapsible Header */}
@@ -237,7 +237,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
         <div className="space-y-4 px-1">
           {/* Все категории */}
           {Object.entries(allCategories).map(([type, categoryRecipes]) => {
-            const mealType = mealTypes.find((m) => m.id === type);
+            const mealType = MEAL_TYPES.find((m) => m.id === type);
             return (
               <div key={type}>
                 <button
@@ -394,7 +394,7 @@ function RecipeGridCard({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const mealType = mealTypes.find((m) => m.id === recipe.meal_type);
+  const mealType = MEAL_TYPES.find((m) => m.id === recipe.meal_type);
 
   const minSwipeDistance = 50;
 
