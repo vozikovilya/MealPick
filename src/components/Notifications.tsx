@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import * as api from '../services/api';
 import type { Notification } from '../services/api';
 import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare, Users } from 'lucide-react';
@@ -17,10 +17,6 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
   
-  // Refs для Intersection Observer
-  const notificationRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const visibilityTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-
   useEffect(() => {
     loadNotifications();
   }, []);
@@ -61,51 +57,6 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
       onUnreadCountChange(unreadCount);
     }
   }, [notifications, onUnreadCountChange]);
-
-  // Intersection Observer для автоматического прочтения
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const notificationId = Number(entry.target.getAttribute('data-notification-id'));
-          const notification = notifications.find((n) => n.id === notificationId);
-          
-          if (!notification || notification.is_read) return;
-
-          if (entry.isIntersecting) {
-            // Уведомление стало видимым - запускаем таймер
-            const timer = setTimeout(() => {
-              handleMarkAsRead(notificationId);
-            }, 2000); // 2 секунды
-            
-            visibilityTimers.current.set(notificationId, timer);
-          } else {
-            // Уведомление стало невидимым - отменяем таймер
-            const timer = visibilityTimers.current.get(notificationId);
-            if (timer) {
-              clearTimeout(timer);
-              visibilityTimers.current.delete(notificationId);
-            }
-          }
-        });
-      },
-      {
-        threshold: 0.5, // Уведомление считается видимым, если 50% его площади в зоне видимости
-      }
-    );
-
-    // Наблюдаем за всеми уведомлениями
-    notificationRefs.current.forEach((element) => {
-      observer.observe(element);
-    });
-
-    return () => {
-      observer.disconnect();
-      // Очищаем все таймеры
-      visibilityTimers.current.forEach((timer) => clearTimeout(timer));
-      visibilityTimers.current.clear();
-    };
-  }, [notifications]);
 
   const loadNotifications = async () => {
     try {
@@ -170,21 +121,7 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
     }
   };
 
-  const handleMarkAsRead = async (notificationId: number) => {
-    try {
-      // Обновляем только локальное состояние без перезагрузки всего списка
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-      );
-      
-      // Отправляем запрос на сервер в фоне (без ожидания)
-      api.updateNotifications({ notification_id: notificationId }).catch(error => {
-        console.error('Ошибка обновления уведомления на сервере:', error);
-      });
-    } catch (error) {
-      console.error('Ошибка обновления уведомления:', error);
-    }
-  };
+
 
   const toggleSelectionMode = () => {
     if (selectionMode) {
@@ -359,14 +296,6 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              ref={(el) => {
-                if (el) {
-                  notificationRefs.current.set(notif.id, el);
-                } else {
-                  notificationRefs.current.delete(notif.id);
-                }
-              }}
-              data-notification-id={notif.id}
               className={`p-4 rounded-2xl border-2 transition-all ${
                 !notif.is_read
                   ? 'border-orange-400 bg-orange-50/30 shadow-md shadow-orange-100'
@@ -422,9 +351,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
                   {/* Action buttons */}
                   {isSwipeRequest && notif.request_id && !selectionMode && (
                     <button
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        await handleMarkAsRead(notif.id);
                         onOpenSwipe(notif.request_id!);
                       }}
                       className="mt-3 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-1.5"
@@ -436,9 +364,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
 
                   {isSwipeResponse && notif.request_id && !selectionMode && (
                     <button
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        await handleMarkAsRead(notif.id);
                         if (onViewDetails) {
                           onViewDetails(notif.request_id!);
                         } else {
@@ -454,9 +381,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
 
                   {isFamilyJoinRequest && !selectionMode && (
                     <button
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        await handleMarkAsRead(notif.id);
                         // Переход в блок "Семья" будет обработан в App.tsx
                         window.location.hash = '#family';
                       }}
@@ -470,9 +396,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
 
                   {isFamilyJoinResponse && !selectionMode && (
                     <button
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        await handleMarkAsRead(notif.id);
                         // Переход в блок "Семья" будет обработан в App.tsx
                         window.location.hash = '#family';
                       }}
