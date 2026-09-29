@@ -3,6 +3,7 @@ import * as api from '../services/api';
 import { Clock, Trash2, ChevronDown, ChevronUp, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Recipe } from '../services/api';
+import { MEAL_TYPES } from '../constants';
 
 type ViewMode = 'list' | 'grid';
 
@@ -10,17 +11,6 @@ interface Props {
   onEditRecipe?: (recipe: Recipe) => void;
   onAddRecipe?: () => void;
 }
-
-// Стандартные категории блюд
-const mealTypes = [
-  { id: 'breakfast', name: 'Завтрак', emoji: '🌅' },
-  { id: 'lunch', name: 'Обед', emoji: '☀️' },
-  { id: 'dinner', name: 'Ужин', emoji: '🌙' },
-  { id: 'sides', name: 'Гарниры', emoji: '🥔' },
-  { id: 'desserts', name: 'Десерты', emoji: '🍰' },
-  { id: 'drinks', name: 'Напитки', emoji: '🥤' },
-  { id: 'sauces', name: 'Соусы', emoji: '🥫' },
-];
 
 export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -123,7 +113,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   // Группируем все категории в единый список
   const allCategories: Record<string, Recipe[]> = {};
   
-  mealTypes.forEach((mt) => {
+  MEAL_TYPES.forEach((mt) => {
     const categoryRecipes = recipes.filter((r) => r.meal_type === mt.id);
     if (categoryRecipes.length > 0) {
       allCategories[mt.id] = categoryRecipes;
