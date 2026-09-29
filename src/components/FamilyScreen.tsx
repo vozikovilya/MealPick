@@ -194,6 +194,7 @@ function FamilyView({
   const [openActionsMenu, setOpenActionsMenu] = useState<number | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<number | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [editName, setEditName] = useState(family.name);
   const [editAvatar, setEditAvatar] = useState(family.avatar);
   const [editError, setEditError] = useState('');
@@ -203,12 +204,40 @@ function FamilyView({
   const familyAvatars = ['👨‍👩‍👧‍👦', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👦', '👩‍👦', '👨‍👧', '👩‍👧', '🏠', '❤️'];
 
   const handleCopyLink = async () => {
+    if (!family.invite_link) {
+      console.error('Ссылка-приглашение отсутствует');
+      return;
+    }
+    
     try {
-      await navigator.clipboard.writeText(family.invite_link);
+      // Пробуем современный API
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(family.invite_link);
+      } else {
+        // Fallback для старых браузеров или non-secure context
+        const textArea = document.createElement('textarea');
+        textArea.value = family.invite_link;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          document.execCommand('copy');
+        } catch (err) {
+          console.error('Fallback копирование не удалось:', err);
+        }
+        
+        document.body.removeChild(textArea);
+      }
+      
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Ошибка копирования:', error);
+      alert('Не удалось скопировать ссылку. Попробуйте выделить и скопировать вручную.');
     }
   };
 
@@ -437,17 +466,7 @@ function FamilyView({
           </button>
         </div>
         <button
-          onClick={() => {
-            if (navigator.share) {
-              navigator.share({
-                title: `Присоединяйся к семье "${family.name}" в MealPick!`,
-                text: `Присоединяйся к нашей семье в MealPick и выбирай блюда вместе!`,
-                url: family.invite_link,
-              });
-            } else {
-              handleCopyLink();
-            }
-          }}
+          onClick={() => setShowShareModal(true)}
           className="w-full py-3 bg-purple-50 text-purple-600 font-medium rounded-xl hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
         >
           📤 Поделиться в соцсетях
@@ -623,6 +642,136 @@ function FamilyView({
                 className="flex-1 py-3 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-colors"
               >
                 Удалить
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowShareModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Поделиться в соцсетях</h3>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Пригласите друзей и семью присоединиться к "{family.name}" в MealPick!
+            </p>
+
+            <div className="grid grid-cols-3 gap-3">
+              {/* Telegram */}
+              <button
+                onClick={() => {
+                  const url = encodeURIComponent(family.invite_link);
+                  const text = encodeURIComponent(`Присоединяйся к семье "${family.name}" в MealPick!`);
+                  window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+                  setShowShareModal(false);
+                }}
+                className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  ✈️
+                </div>
+                <span className="text-xs font-medium text-gray-700">Telegram</span>
+              </button>
+
+              {/* WhatsApp */}
+              <button
+                onClick={() => {
+                  const url = encodeURIComponent(family.invite_link);
+                  const text = encodeURIComponent(`Присоединяйся к семье "${family.name}" в MealPick!`);
+                  window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+                  setShowShareModal(false);
+                }}
+                className="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  💬
+                </div>
+                <span className="text-xs font-medium text-gray-700">WhatsApp</span>
+              </button>
+
+              {/* Viber */}
+              <button
+                onClick={() => {
+                  const url = encodeURIComponent(family.invite_link);
+                  const text = encodeURIComponent(`Присоединяйся к семье "${family.name}" в MealPick!`);
+                  window.open(`viber://forward?text=${text}%20${url}`, '_blank');
+                  setShowShareModal(false);
+                }}
+                className="flex flex-col items-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  📱
+                </div>
+                <span className="text-xs font-medium text-gray-700">Viber</span>
+              </button>
+
+              {/* VK */}
+              <button
+                onClick={() => {
+                  const url = encodeURIComponent(family.invite_link);
+                  const title = encodeURIComponent(`Присоединяйся к семье "${family.name}" в MealPick!`);
+                  window.open(`https://vk.com/share.php?url=${url}&title=${title}`, '_blank');
+                  setShowShareModal(false);
+                }}
+                className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                  VK
+                </div>
+                <span className="text-xs font-medium text-gray-700">ВКонтакте</span>
+              </button>
+
+              {/* Facebook */}
+              <button
+                onClick={() => {
+                  const url = encodeURIComponent(family.invite_link);
+                  window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+                  setShowShareModal(false);
+                }}
+                className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-blue-700 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                  f
+                </div>
+                <span className="text-xs font-medium text-gray-700">Facebook</span>
+              </button>
+
+              {/* Twitter */}
+              <button
+                onClick={() => {
+                  const url = encodeURIComponent(family.invite_link);
+                  const text = encodeURIComponent(`Присоединяйся к семье "${family.name}" в MealPick!`);
+                  window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
+                  setShowShareModal(false);
+                }}
+                className="flex flex-col items-center gap-2 p-4 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center text-white text-2xl">
+                  🐦
+                </div>
+                <span className="text-xs font-medium text-gray-700">Twitter</span>
               </button>
             </div>
           </motion.div>
