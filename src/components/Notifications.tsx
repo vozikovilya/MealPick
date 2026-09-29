@@ -25,6 +25,35 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
     loadNotifications();
   }, []);
 
+  // Polling для обновления уведомлений в реальном времени
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await api.getNotifications();
+        const newNotifications = response.data.notifications;
+        
+        // Обновляем список только если есть изменения
+        setNotifications(prev => {
+          const prevIds = new Set(prev.map(n => n.id));
+          const hasNewNotifications = newNotifications.some(n => !prevIds.has(n.id));
+          const hasReadChanges = newNotifications.some(n => {
+            const prevNotif = prev.find(p => p.id === n.id);
+            return prevNotif && prevNotif.is_read !== n.is_read;
+          });
+          
+          if (hasNewNotifications || hasReadChanges) {
+            return newNotifications;
+          }
+          return prev;
+        });
+      } catch (error) {
+        console.error('Ошибка polling уведомлений:', error);
+      }
+    }, 3000); // Каждые 3 секунды
+
+    return () => clearInterval(pollInterval);
+  }, []);
+
   // Обновляем счётчик непрочитанных
   useEffect(() => {
     const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -143,8 +172,15 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
-      await api.updateNotifications({ notification_id: notificationId });
-      await loadNotifications();
+      // Обновляем только локальное состояние без перезагрузки всего списка
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+      
+      // Отправляем запрос на сервер в фоне (без ожидания)
+      api.updateNotifications({ notification_id: notificationId }).catch(error => {
+        console.error('Ошибка обновления уведомления на сервере:', error);
+      });
     } catch (error) {
       console.error('Ошибка обновления уведомления:', error);
     }
@@ -289,7 +325,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
         )}
       </AnimatePresence>
 
-      <div className="space-y-3">
+      <AnimatePresence initial={false}>
+        <div className="space-y-3">
         {sortedNotifications.map((notif, index) => {
           const isSelected = selectedIds.includes(notif.id);
           const isSwipeRequest = notif.type === 'swipe_request';
@@ -300,6 +337,11 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
           return (
             <motion.div
               key={notif.id}
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               ref={(el) => {
                 if (el) {
                   notificationRefs.current.set(notif.id, el);
@@ -308,9 +350,6 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
                 }
               }}
               data-notification-id={notif.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
               className={`p-4 rounded-2xl border-2 transition-all ${
                 !notif.is_read
                   ? 'border-orange-400 bg-orange-50/30 shadow-md shadow-orange-100'
@@ -415,6 +454,7 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
           );
         })}
       </div>
+      </AnimatePresence>
     </div>
   );
 }
