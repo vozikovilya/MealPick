@@ -1,0 +1,131 @@
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Users } from 'lucide-react';
+
+interface JoinResponsePopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onNavigate: () => void;
+  accepted: boolean;
+  familyName: string;
+}
+
+export function JoinResponsePopup({
+  isOpen,
+  onClose,
+  onNavigate,
+  accepted,
+  familyName,
+}: JoinResponsePopupProps) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full"
+          >
+            {/* Заголовок */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-800">
+                {accepted ? 'Заявка принята!' : 'Заявка отклонена'}
+              </h3>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Иконка */}
+            <div className="flex justify-center mb-4">
+              {accepted ? (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                  className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-400 rounded-full flex items-center justify-center shadow-lg"
+                >
+                  <span className="text-4xl">🎉</span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                  className="w-20 h-20 bg-gradient-to-br from-gray-400 to-gray-500 rounded-full flex items-center justify-center shadow-lg"
+                >
+                  <span className="text-4xl">😔</span>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Сообщение */}
+            <div className="text-center mb-6">
+              {accepted ? (
+                <>
+                  <p className="text-gray-600 mb-2">
+                    Поздравляем! Вы теперь часть семьи
+                  </p>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 mb-3">
+                    <p className="text-lg font-bold text-green-700">
+                      "{familyName}"
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Теперь вы можете выбирать блюда вместе с вашей семьёй!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-600 mb-2">
+                    К сожалению, ваша заявка на вступление в семью
+                  </p>
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-3">
+                    <p className="text-lg font-bold text-gray-700">
+                      "{familyName}"
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    была отклонена. Не расстраивайтесь, вы можете создать свою собственную семью!
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Кнопки */}
+            <div className="space-y-3">
+              <button
+                onClick={onNavigate}
+                className={`w-full py-3 font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                  accepted
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-200 hover:shadow-xl'
+                    : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-orange-200 hover:shadow-xl'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                Перейти в семью
+              </button>
+              
+              <button
+                onClick={onClose}
+                className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

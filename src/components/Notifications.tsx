@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import * as api from '../services/api';
 import type { Notification } from '../services/api';
-import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare } from 'lucide-react';
+import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
@@ -453,17 +453,35 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
                   )}
 
                   {isFamilyJoinRequest && !selectionMode && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-purple-600">
-                      <span>👋</span>
-                      <span>Заявка на вступление в семью</span>
-                    </div>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await handleMarkAsRead(notif.id);
+                        // Переход в блок "Семья" будет обработан в App.tsx
+                        window.location.hash = '#family';
+                      }}
+                      className="mt-3 px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-xl hover:bg-purple-600 transition-colors flex items-center gap-1.5"
+                    >
+                      <Users className="w-4 h-4" />
+                      Перейти в семью
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   )}
 
                   {isFamilyJoinResponse && !selectionMode && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-purple-600">
-                      <span>👨‍👩‍👧‍👦</span>
-                      <span>Ответ на заявку в семью</span>
-                    </div>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await handleMarkAsRead(notif.id);
+                        // Переход в блок "Семья" будет обработан в App.tsx
+                        window.location.hash = '#family';
+                      }}
+                      className="mt-3 px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-xl hover:bg-purple-600 transition-colors flex items-center gap-1.5"
+                    >
+                      <Users className="w-4 h-4" />
+                      Перейти в семью
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
               </div>

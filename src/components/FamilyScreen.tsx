@@ -3,6 +3,9 @@ import * as api from '../services/api';
 import { Users, ArrowLeft, Edit2, Copy, Check, Trash2, Crown, Link, UserPlus, X, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { User as UserType, Family, FamilyMember, JoinRequest } from '../services/api';
+import { JoinRequestPopup } from './JoinRequestPopup';
+import { JoinResponsePopup } from './JoinResponsePopup';
+import { FamilyDeletedPopup } from './FamilyDeletedPopup';
 
 interface Props {
   onBack: () => void;
@@ -16,6 +19,14 @@ export function FamilyScreen({ onBack }: Props) {
   const [myJoinRequest, setMyJoinRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showJoinRequestSent, setShowJoinRequestSent] = useState(false);
+  
+  // Состояния для попапов
+  const [showJoinRequestPopup, setShowJoinRequestPopup] = useState(false);
+  const [currentJoinRequest, setCurrentJoinRequest] = useState<JoinRequest | null>(null);
+  const [showJoinResponsePopup, setShowJoinResponsePopup] = useState(false);
+  const [joinResponseAccepted, setJoinResponseAccepted] = useState(false);
+  const [showFamilyDeletedPopup, setShowFamilyDeletedPopup] = useState(false);
+  const [deletedFamilyName, setDeletedFamilyName] = useState('');
 
   useEffect(() => {
     loadData();
@@ -51,6 +62,89 @@ export function FamilyScreen({ onBack }: Props) {
       setLoading(false);
     }
   };
+
+  // Polling для проверки новых заявок (для главы семьи)
+  useEffect(() => {
+    if (!family || family.owner_id !== user?.id) return;
+
+    const checkNewRequests = async () => {
+      try {
+        const familyResponse = await api.getFamily();
+        const newRequests = familyResponse.data.pendingRequests || [];
+        
+        // Проверяем, есть ли новые заявки
+        if (newRequests.length > pendingRequests.length) {
+          const latestRequest = newRequests[0];
+          setCurrentJoinRequest(latestRequest);
+          setShowJoinRequestPopup(true);
+        }
+        
+        setPendingRequests(newRequests);
+      } catch (error) {
+        console.error('Ошибка проверки заявок:', error);
+      }
+    };
+
+    const interval = setInterval(checkNewRequests, 3000); // Каждые 3 секунды
+    return () => clearInterval(interval);
+  }, [family, user, pendingRequests.length]);
+
+  // Polling для проверки статуса своей заявки (для обычного участника)
+  useEffect(() => {
+    if (!myJoinRequest || family) return;
+
+    const checkMyRequestStatus = async () => {
+      try {
+        const myRequestResponse = await api.getMyJoinRequest();
+        const request = myRequestResponse.data.request;
+        
+        if (!request) {
+          // Заявка обработана - проверяем, принята ли она
+          const profileResponse = await api.getProfile();
+          if (profileResponse.data.family) {
+            // Заявка принята
+            setJoinResponseAccepted(true);
+            setShowJoinResponsePopup(true);
+            setFamily(profileResponse.data.family);
+            setMyJoinRequest(null);
+          } else {
+            // Заявка отклонена
+            setJoinResponseAccepted(false);
+            setShowJoinResponsePopup(true);
+            setMyJoinRequest(null);
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка проверки статуса заявки:', error);
+      }
+    };
+
+    const interval = setInterval(checkMyRequestStatus, 3000); // Каждые 3 секунды
+    return () => clearInterval(interval);
+  }, [myJoinRequest, family]);
+
+  // Polling для проверки существования семьи (для участников)
+  useEffect(() => {
+    if (!family || family.owner_id === user?.id) return;
+
+    const checkFamilyExists = async () => {
+      try {
+        const familyResponse = await api.getFamily();
+        if (!familyResponse.data.family) {
+          // Семья удалена
+          setDeletedFamilyName(family.name);
+          setShowFamilyDeletedPopup(true);
+          setFamily(null);
+          setMembers([]);
+        }
+      } catch (error) {
+        console.error('Ошибка проверки семьи:', error);
+      }
+    };
+
+    const interval = setInterval(checkFamilyExists, 3000); // Каждые 3 секунды
+    return () => clearInterval(interval);
+  }, [family, user]);
 
   if (loading) {
     return (
@@ -186,6 +280,71 @@ export function FamilyScreen({ onBack }: Props) {
             setShowJoinRequestSent(true);
             loadData();
           }}
+        />
+      )}
+
+      {/* Попап заявки на вступление (для главы семьи) */}
+      {showJoinRequestPopup && currentJoinRequest && (
+        <JoinRequestPopup
+          isOpen={showJoinRequestPopup}
+          onClose={() => {
+            setShowJoinRequestPopup(false);
+            setCurrentJoinRequest(null);
+          }}
+          onAccept={async () => {
+            try {
+              await api.respondToJoinRequest(currentJoinRequest.id, true);
+              setShowJoinRequestPopup(false);
+              setCurrentJoinRequest(null);
+              await loadData();
+            } catch (error) {
+              console.error('Ошибка принятия заявки:', error);
+            }
+          }}
+          onReject={async () => {
+            try {
+              await api.respondToJoinRequest(currentJoinRequest.id, false);
+              setShowJoinRequestPopup(false);
+              setCurrentJoinRequest(null);
+              await loadData();
+            } catch (error) {
+              console.error('Ошибка отклонения заявки:', error);
+            }
+          }}
+          onLater={() => {
+            setShowJoinRequestPopup(false);
+            setCurrentJoinRequest(null);
+          }}
+          userName={currentJoinRequest.name}
+          userEmail={currentJoinRequest.email}
+          userAvatar={currentJoinRequest.avatar}
+        />
+      )}
+
+      {/* Попап ответа на заявку (для пользователя) */}
+      {showJoinResponsePopup && family && (
+        <JoinResponsePopup
+          isOpen={showJoinResponsePopup}
+          onClose={() => setShowJoinResponsePopup(false)}
+          onNavigate={() => {
+            setShowJoinResponsePopup(false);
+            // Перезагружаем данные для отображения семьи
+            loadData();
+          }}
+          accepted={joinResponseAccepted}
+          familyName={family.name}
+        />
+      )}
+
+      {/* Попап удаления семьи (для участников) */}
+      {showFamilyDeletedPopup && (
+        <FamilyDeletedPopup
+          isOpen={showFamilyDeletedPopup}
+          onClose={() => {
+            setShowFamilyDeletedPopup(false);
+            setDeletedFamilyName('');
+          }}
+          familyName={deletedFamilyName}
         />
       )}
     </div>
@@ -344,6 +503,9 @@ function FamilyView({
           <h3 className="font-semibold text-gray-800 flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-orange-500" />
             Заявки на вступление ({pendingRequests.length})
+            {pendingRequests.length > 0 && (
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+            )}
           </h3>
           <div className="space-y-2">
             {pendingRequests.map((request) => (

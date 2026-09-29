@@ -28,6 +28,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [toastNotifications, setToastNotifications] = useState<ToastNotification[]>([]);
 
   // Refs для callback функций (паттерн "latest ref")
@@ -38,6 +39,21 @@ function App() {
   useEffect(() => {
     localStorage.setItem('currentScreen', screen);
   }, [screen]);
+
+  // Обработка hash для перехода в блок "Семья"
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#family') {
+        setScreen('family');
+        window.location.hash = '';
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange(); // Проверяем hash при загрузке
+
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Проверка авторизации при загрузке
   useEffect(() => {
@@ -53,6 +69,12 @@ function App() {
             (n) => !n.is_read && n.type === 'swipe_request'
           ).length;
           setUnreadCount(count);
+          
+          // Проверяем количество заявок на вступление (для главы семьи)
+          if (profile.data.family && profile.data.family.owner_id === profile.data.user.id) {
+            const familyResponse = await api.getFamily();
+            setPendingRequestsCount(familyResponse.data.pendingRequests?.length || 0);
+          }
         } catch (error) {
           api.logout();
           setIsAuthenticated(false);
@@ -61,6 +83,28 @@ function App() {
     };
     checkAuth();
   }, []);
+
+  // Polling для проверки количества заявок на вступление
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    const checkPendingRequests = async () => {
+      try {
+        const profile = await api.getProfile();
+        if (profile.data.family && profile.data.family.owner_id === currentUser.id) {
+          const familyResponse = await api.getFamily();
+          setPendingRequestsCount(familyResponse.data.pendingRequests?.length || 0);
+        } else {
+          setPendingRequestsCount(0);
+        }
+      } catch (error) {
+        console.error('Ошибка проверки заявок:', error);
+      }
+    };
+
+    const interval = setInterval(checkPendingRequests, 5000); // Каждые 5 секунд
+    return () => clearInterval(interval);
+  }, [isAuthenticated, currentUser]);
 
   // Функция для удаления toast уведомления
   const removeToastNotification = (id: string) => {
@@ -366,7 +410,9 @@ function App() {
             onClick={() => setScreen('family')}
             icon={<Users className="w-5 h-5" />}
             label="Семья"
+            badge={pendingRequestsCount}
             color="purple"
+            key={`nav-family-${pendingRequestsCount}`}
           />
           <NavButton
             active={screen === 'profile'}

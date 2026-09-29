@@ -69,47 +69,11 @@ export function ProfileScreen({ onBack, onLogout }: Props) {
   }
 
   if (view === 'personal') {
-    return <PersonalProfile user={user} onUpdate={loadProfile} onBack={() => setView('main')} />;
+    return <PersonalProfile user={user} onUpdate={loadProfile} onBack={() => setView('main')} onLogout={onLogout} />;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <h2 className="text-xl font-bold text-gray-800">Я</h2>
-      </div>
-
-      {/* User card */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
-        <div className="text-5xl mb-3">{user.avatar}</div>
-        <h3 className="text-lg font-bold text-gray-800">{user.name}</h3>
-        <p className="text-sm text-gray-500">{user.email}</p>
-      </div>
-
-      {/* Menu */}
-      <div className="space-y-3">
-        <button
-          onClick={() => setView('personal')}
-          className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-orange-200 transition-all flex items-center gap-4"
-        >
-          <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-            <User className="w-6 h-6 text-orange-600" />
-          </div>
-          <div className="flex-1 text-left">
-            <h4 className="font-semibold text-gray-800">Личный профиль</h4>
-            <p className="text-xs text-gray-500">Аватар, имя, описание, данные входа</p>
-          </div>
-        </button>
-      </div>
-
-      {/* Logout */}
-      <button
-        onClick={onLogout}
-        className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-      >
-        <LogOut className="w-5 h-5" />
-        Выйти из аккаунта
-      </button>
-    </div>
+    <PersonalProfile user={user} onUpdate={loadProfile} onBack={onBack} onLogout={onLogout} />
   );
 }
 
@@ -117,10 +81,12 @@ function PersonalProfile({
   user,
   onUpdate,
   onBack,
+  onLogout,
 }: {
   user: UserType;
   onUpdate: () => void;
   onBack: () => void;
+  onLogout: () => void;
 }) {
   const [name, setName] = useState(user.name);
   const [avatar, setAvatar] = useState(user.avatar);
