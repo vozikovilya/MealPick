@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import * as api from './services/api';
-import type { Recipe } from './services/api';
+import type { Recipe } from './types';
+import { usePolling } from './hooks/usePolling';
 import { RecipeList } from './components/RecipeList';
 import { AddRecipe } from './components/AddRecipe';
 import { SendRequest } from './components/SendRequest';
@@ -13,20 +15,85 @@ import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { FamilyScreen } from './components/FamilyScreen';
 import { ToastNotifications, ToastNotification } from './components/ToastNotifications';
-import { UIDemo } from './components/UIDemo';
-import { AllComponentsDemo } from './components/AllComponentsDemo';
-import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User, Users, Palette } from 'lucide-react';
+import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User, Users } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile' | 'family' | 'ui-demo' | 'all-components';
+// ==================== Экраны-обёртки (параметры маршрутов -> пропсы) ====================
+
+function RecipesPage() {
+  const navigate = useNavigate();
+  return (
+    <RecipeList
+      onEditRecipe={(recipe) => {
+        sessionStorage.setItem('editRecipe', JSON.stringify(recipe));
+        navigate('/edit');
+      }}
+      onAddRecipe={() => navigate('/add')}
+    />
+  );
+}
+
+function AddPage() {
+  const navigate = useNavigate();
+  return <AddRecipe onDone={() => navigate('/recipes')} />;
+}
+
+function EditPage() {
+  const navigate = useNavigate();
+  const raw = sessionStorage.getItem('editRecipe');
+  if (!raw) {
+    navigate('/recipes');
+    return null;
+  }
+  const editRecipe = JSON.parse(raw) as Recipe;
+  return (
+    <AddRecipe
+      editRecipe={editRecipe}
+      onDone={() => {
+        sessionStorage.removeItem('editRecipe');
+        navigate('/recipes');
+      }}
+    />
+  );
+}
+
+function SendPage() {
+  const navigate = useNavigate();
+  return <SendRequest onDone={() => navigate('/recipes')} />;
+}
+
+function SwipePage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  if (!id) return null;
+  return <SwipeSelector requestId={Number(id)} onDone={() => navigate('/notifications')} />;
+}
+
+function ResultsPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  if (!id) return null;
+  return <SelectedResults requestId={Number(id)} onBack={() => navigate('/notifications')} />;
+}
+
+function DetailsPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  if (!id) return null;
+  return <SwipeRequestDetails requestId={Number(id)} onBack={() => navigate('/notifications')} />;
+}
+
+function FamilyPage() {
+  const navigate = useNavigate();
+  return <FamilyScreen onBack={() => navigate('/recipes')} />;
+}
+
+// ==================== App ====================
 
 function App() {
-  // Восстанавливаем сохранённый экран из localStorage
-  const savedScreen = localStorage.getItem('currentScreen') as Screen | null;
-  const [screen, setScreen] = useState<Screen>(savedScreen || 'recipes');
-  const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
-  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [profileKey, setProfileKey] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
@@ -36,26 +103,6 @@ function App() {
   const handleOpenSwipeRef = useRef<(id: number) => void>(() => {});
   const handleViewDetailsRef = useRef<(id: number) => void>(() => {});
 
-  // Сохраняем текущий экран в localStorage при изменении
-  useEffect(() => {
-    localStorage.setItem('currentScreen', screen);
-  }, [screen]);
-
-  // Обработка hash для перехода в блок "Семья"
-  useEffect(() => {
-    const handleHashChange = () => {
-      if (window.location.hash === '#family') {
-        setScreen('family');
-        window.location.hash = '';
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Проверяем hash при загрузке
-
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
   // Проверка авторизации при загрузке
   useEffect(() => {
     const checkAuth = async () => {
@@ -64,13 +111,13 @@ function App() {
           const profile = await api.getProfile();
           setCurrentUser(profile.data.user);
           setIsAuthenticated(true);
-          
+
           const notifResponse = await api.getNotifications();
           const count = notifResponse.data.notifications.filter(
             (n) => !n.is_read && n.type === 'swipe_request'
           ).length;
           setUnreadCount(count);
-          
+
           // Проверяем количество заявок на вступление (для главы семьи)
           if (profile.data.family && profile.data.family.owner_id === profile.data.user.id) {
             const familyResponse = await api.getFamily();
@@ -81,15 +128,21 @@ function App() {
           setIsAuthenticated(false);
         }
       }
+      setAuthChecked(true);
     };
     checkAuth();
   }, []);
 
-  // Polling для проверки количества заявок на вступление
+  // После проверки авторизации редиректим с "/" на "/recipes"
   useEffect(() => {
-    if (!isAuthenticated || !currentUser) return;
+    if (authChecked && isAuthenticated && location.pathname === '/') {
+      navigate('/recipes', { replace: true });
+    }
+  }, [authChecked, isAuthenticated, location.pathname, navigate]);
 
-    const checkPendingRequests = async () => {
+  // Polling количества заявок на вступление (глава семьи)
+  usePolling(
+    async () => {
       try {
         const profile = await api.getProfile();
         if (profile.data.family && profile.data.family.owner_id === currentUser.id) {
@@ -101,15 +154,14 @@ function App() {
       } catch (error) {
         console.error('Ошибка проверки заявок:', error);
       }
-    };
-
-    const interval = setInterval(checkPendingRequests, 5000); // Каждые 5 секунд
-    return () => clearInterval(interval);
-  }, [isAuthenticated, currentUser]);
+    },
+    5_000,
+    isAuthenticated && !!currentUser
+  );
 
   // Функция для удаления toast уведомления
   const removeToastNotification = (id: string) => {
-    setToastNotifications(prev => prev.filter(n => n.id !== id));
+    setToastNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   // Обработчик нового запроса на выбор блюд
@@ -128,9 +180,9 @@ function App() {
         removeToastNotification(notificationId);
       },
     };
-    
-    setToastNotifications(prev => [...prev, newNotification]);
-    
+
+    setToastNotifications((prev) => [...prev, newNotification]);
+
     setTimeout(() => {
       removeToastNotification(notificationId);
     }, 10000);
@@ -152,32 +204,24 @@ function App() {
         removeToastNotification(notificationId);
       },
     };
-    
-    setToastNotifications(prev => [...prev, newNotification]);
-    
+
+    setToastNotifications((prev) => [...prev, newNotification]);
+
     setTimeout(() => {
       removeToastNotification(notificationId);
     }, 10000);
   };
 
-  // Polling для уведомлений в реальном времени (без кастомного хука)
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const lastCheckRef = { current: Date.now() };
-    const isRunningRef = { current: false };
-
-    const checkForNewNotifications = async () => {
-      if (isRunningRef.current) return;
-
+  // Polling уведомлений в реальном времени
+  const lastCheckRef = useRef(Date.now());
+  usePolling(
+    async () => {
       try {
-        isRunningRef.current = true;
         const response = await api.getNotifications();
         const notifications = response.data.notifications;
 
         // Обновляем счётчик непрочитанных уведомлений
-        const unreadCount = notifications.filter((n: any) => !n.is_read).length;
-        setUnreadCount(unreadCount);
+        setUnreadCount(notifications.filter((n: any) => !n.is_read).length);
 
         const newNotifications = notifications.filter(
           (n: any) => new Date(n.created_at).getTime() > lastCheckRef.current
@@ -196,59 +240,56 @@ function App() {
         lastCheckRef.current = Date.now();
       } catch (error) {
         console.error('Ошибка проверки уведомлений:', error);
-      } finally {
-        isRunningRef.current = false;
       }
-    };
+    },
+    5_000,
+    isAuthenticated,
+    true
+  );
 
-    checkForNewNotifications();
-    const intervalId = setInterval(checkForNewNotifications, 5000);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [isAuthenticated]);
-
-  // Определяем функции-обработчики
-  const handleOpenSwipe = (requestId: number) => {
-    setActiveRequestId(requestId);
-    setScreen('swipe');
-  };
-
-  const handleViewResults = (requestId: number) => {
-    setActiveRequestId(requestId);
-    setScreen('results');
-  };
-
-  const handleViewDetails = (requestId: number) => {
-    setActiveRequestId(requestId);
-    setScreen('details');
-  };
+  // Функции-обработчики навигации по запросу
+  const handleOpenSwipe = (requestId: number) => navigate(`/swipe/${requestId}`);
+  const handleViewResults = (requestId: number) => navigate(`/results/${requestId}`);
+  const handleViewDetails = (requestId: number) => navigate(`/details/${requestId}`);
 
   const handleLogout = () => {
     api.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
-    setScreen('recipes');
-    localStorage.removeItem('currentScreen');
+    sessionStorage.removeItem('editRecipe');
+    navigate('/', { replace: true });
   };
 
   // Обновляем refs
   handleOpenSwipeRef.current = handleOpenSwipe;
   handleViewDetailsRef.current = handleViewDetails;
 
-  // Условный возврат ПОСЛЕ всех хуков и функций
+  if (!authChecked) {
+    return null;
+  }
+
   if (!isAuthenticated || !currentUser) {
-    return <AuthScreen onAuth={async () => {
-      try {
-        const profile = await api.getProfile();
-        setCurrentUser(profile.data.user);
-        setIsAuthenticated(true);
-        setScreen('recipes');
-      } catch (error) {
-        console.error('Ошибка загрузки профиля:', error);
-      }
-    }} />;
+    return (
+      <Routes>
+        <Route
+          path="*"
+          element={
+            <AuthScreen
+              onAuth={async () => {
+                try {
+                  const profile = await api.getProfile();
+                  setCurrentUser(profile.data.user);
+                  setIsAuthenticated(true);
+                  navigate('/recipes', { replace: true });
+                } catch (error) {
+                  console.error('Ошибка загрузки профиля:', error);
+                }
+              }}
+            />
+          }
+        />
+      </Routes>
+    );
   }
 
   return (
@@ -256,7 +297,7 @@ function App() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-orange-100 shadow-sm">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/recipes')}>
             <ChefHat className="w-7 h-7 text-orange-500" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
               MealPick
@@ -264,44 +305,18 @@ function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setScreen('ui-demo')}
-              className={`p-2 rounded-full transition-all ${
-                screen === 'ui-demo'
-                  ? 'bg-gradient-to-br from-orange-100 to-amber-100 shadow-md shadow-orange-200'
-                  : 'hover:bg-orange-50'
-              }`}
-              title="UI Library Demo"
-            >
-              <svg className={`w-5 h-5 transition-colors ${
-                screen === 'ui-demo' ? 'text-orange-600' : 'text-gray-600'
-              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setScreen('all-components')}
-              className={`p-2 rounded-full transition-all ${
-                screen === 'all-components'
-                  ? 'bg-gradient-to-br from-purple-100 to-pink-100 shadow-md shadow-purple-200'
-                  : 'hover:bg-purple-50'
-              }`}
-              title="Все компоненты"
-            >
-              <Palette className={`w-5 h-5 transition-colors ${
-                screen === 'all-components' ? 'text-purple-600' : 'text-gray-600'
-              }`} />
-            </button>
-            <button
-              onClick={() => setScreen('notifications')}
+              onClick={() => navigate('/notifications')}
               className={`relative p-2 rounded-full transition-all ${
-                screen === 'notifications'
+                location.pathname.startsWith('/notifications')
                   ? 'bg-gradient-to-br from-orange-100 to-amber-100 shadow-md shadow-orange-200'
                   : 'hover:bg-orange-50'
               }`}
             >
-              <Bell className={`w-5 h-5 transition-colors ${
-                screen === 'notifications' ? 'text-orange-600' : 'text-gray-600'
-              }`} />
+              <Bell
+                className={`w-5 h-5 transition-colors ${
+                  location.pathname.startsWith('/notifications') ? 'text-orange-600' : 'text-gray-600'
+                }`}
+              />
               {unreadCount > 0 && (
                 <motion.span
                   key={unreadCount}
@@ -316,10 +331,7 @@ function App() {
               )}
             </button>
             <button
-              onClick={() => {
-                setScreen('profile');
-                setProfileKey(prev => prev + 1);
-              }}
+              onClick={() => navigate('/profile')}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 hover:from-orange-200 hover:to-amber-200 border border-orange-200 transition-all shadow-sm hover:shadow-md"
             >
               <span className="text-lg">{currentUser.avatar}</span>
@@ -331,121 +343,82 @@ function App() {
 
       {/* Content */}
       <main className="max-w-lg mx-auto px-4 py-6 pb-24">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={screen}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-          >
-            {screen === 'recipes' && (
-              <RecipeList
-                onEditRecipe={(recipe) => {
-                  setEditingRecipe(recipe);
-                  setScreen('edit');
-                }}
-                onAddRecipe={() => setScreen('add')}
-              />
-            )}
-            {screen === 'add' && <AddRecipe onDone={() => setScreen('recipes')} />}
-            {screen === 'edit' && editingRecipe && (
-              <AddRecipe
-                onDone={() => {
-                  setEditingRecipe(null);
-                  setScreen('recipes');
-                }}
-                editRecipe={editingRecipe}
-              />
-            )}
-            {screen === 'send' && <SendRequest onDone={() => setScreen('recipes')} />}
-            {screen === 'swipe' && activeRequestId && (
-              <SwipeSelector
-                requestId={activeRequestId}
-                onDone={() => {
-                  setScreen('notifications');
-                  setActiveRequestId(null);
-                }}
-              />
-            )}
-            {screen === 'notifications' && (
-              <Notifications
-                onOpenSwipe={handleOpenSwipe}
-                onViewResults={handleViewResults}
-                onViewDetails={handleViewDetails}
-                onUnreadCountChange={setUnreadCount}
-              />
-            )}
-            {screen === 'results' && activeRequestId && (
-              <SelectedResults
-                requestId={activeRequestId}
-                onBack={() => setScreen('notifications')}
-              />
-            )}
-            {screen === 'details' && activeRequestId && (
-              <SwipeRequestDetails
-                requestId={activeRequestId}
-                onBack={() => setScreen('notifications')}
-              />
-            )}
-            {screen === 'profile' && (
-              <ProfileScreen
-                key={profileKey}
-                onBack={() => setScreen('recipes')}
-                onLogout={handleLogout}
-              />
-            )}
-            {screen === 'family' && (
-              <FamilyScreen
-                onBack={() => setScreen('recipes')}
-              />
-            )}
-            {screen === 'ui-demo' && (
-              <UIDemo />
-            )}
-            {screen === 'all-components' && (
-              <AllComponentsDemo />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+        >
+          <Routes>
+            <Route path="/" element={<RecipesPage />} />
+            <Route path="/recipes" element={<RecipesPage />} />
+            <Route path="/add" element={<AddPage />} />
+            <Route path="/edit" element={<EditPage />} />
+            <Route path="/send" element={<SendPage />} />
+            <Route path="/swipe/:id" element={<SwipePage />} />
+            <Route
+              path="/notifications"
+              element={
+                <Notifications
+                  onOpenSwipe={handleOpenSwipe}
+                  onViewResults={handleViewResults}
+                  onViewDetails={handleViewDetails}
+                  onUnreadCountChange={setUnreadCount}
+                />
+              }
+            />
+            <Route path="/results/:id" element={<ResultsPage />} />
+            <Route path="/details/:id" element={<DetailsPage />} />
+            <Route
+              path="/profile"
+              element={
+                <ProfileScreen
+                  key={location.key}
+                  onBack={() => navigate('/recipes')}
+                  onLogout={handleLogout}
+                />
+              }
+            />
+            <Route path="/family" element={<FamilyPage />} />
+          </Routes>
+        </motion.div>
       </main>
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-white/95 backdrop-blur-lg border-t border-orange-200 shadow-2xl z-30">
         <div className="max-w-lg mx-auto px-4 py-3 flex justify-around items-center">
           <NavButton
-            active={screen === 'recipes'}
-            onClick={() => setScreen('recipes')}
+            active={location.pathname === '/recipes' || location.pathname === '/'}
+            onClick={() => navigate('/recipes')}
             icon={<UtensilsCrossed className="w-5 h-5" />}
             label="Меню"
             color="orange"
           />
           <NavButton
-            active={screen === 'add'}
-            onClick={() => setScreen('add')}
+            active={location.pathname === '/add'}
+            onClick={() => navigate('/add')}
             icon={<Plus className="w-5 h-5" />}
             label="Новое блюдо"
             color="blue"
           />
           <NavButton
-            active={screen === 'send'}
-            onClick={() => setScreen('send')}
+            active={location.pathname === '/send'}
+            onClick={() => navigate('/send')}
             icon={<Send className="w-5 h-5" />}
             label="Спросить"
             color="green"
           />
           <NavButton
-            active={screen === 'family'}
-            onClick={() => setScreen('family')}
+            active={location.pathname === '/family'}
+            onClick={() => navigate('/family')}
             icon={<Users className="w-5 h-5" />}
             label="Семья"
             badge={pendingRequestsCount}
             color="purple"
-            key={`nav-family-${pendingRequestsCount}`}
           />
           <NavButton
-            active={screen === 'profile'}
-            onClick={() => setScreen('profile')}
+            active={location.pathname === '/profile'}
+            onClick={() => navigate('/profile')}
             icon={<User className="w-5 h-5" />}
             label="Я"
             color="pink"
@@ -511,8 +484,8 @@ function NavButton({
     <button
       onClick={onClick}
       className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-2xl transition-all min-w-[60px] relative ${
-        active 
-          ? `${currentColor.active} scale-105` 
+        active
+          ? `${currentColor.active} scale-105`
           : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
       }`}
     >

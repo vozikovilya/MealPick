@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as api from '../services/api';
-import type { Recipe, Family, FamilyMember } from '../services/api';
+import type { Recipe, Family, FamilyMember } from '../types';
 import { Send, Check, List, Truck, MessageCircle, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { RequestSentModal } from './RequestSentModal';

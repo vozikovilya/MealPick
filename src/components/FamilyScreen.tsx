@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import * as api from '../services/api';
+import { usePolling } from '../hooks/usePolling';
 import { Users, ArrowLeft, Edit2, Copy, Check, Trash2, Crown, Link, UserPlus, X, ChevronDown, LogOut, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { User as UserType, Family, FamilyMember, JoinRequest } from '../services/api';
+import type { User as UserType, Family, FamilyMember, JoinRequest } from '../types';
 import { JoinRequestPopup } from './JoinRequestPopup';
 import { JoinResponsePopup } from './JoinResponsePopup';
 import { JoinRejectedPopup } from './JoinRejectedPopup';
@@ -75,40 +76,35 @@ export function FamilyScreen({ onBack }: Props) {
   };
 
   // Polling для проверки новых заявок (для главы семьи)
-  useEffect(() => {
-    if (!family || family.owner_id !== user?.id) return;
-
-    const checkNewRequests = async () => {
+  usePolling(
+    async () => {
       try {
         const familyResponse = await api.getFamily();
         const newRequests = familyResponse.data.pendingRequests || [];
-        
+
         // Проверяем, есть ли новые заявки
         if (newRequests.length > pendingRequests.length) {
           const latestRequest = newRequests[0];
           setCurrentJoinRequest(latestRequest);
           setShowJoinRequestPopup(true);
         }
-        
+
         setPendingRequests(newRequests);
       } catch (error) {
         console.error('Ошибка проверки заявок:', error);
       }
-    };
-
-    const interval = setInterval(checkNewRequests, 3000); // Каждые 3 секунды
-    return () => clearInterval(interval);
-  }, [family, user, pendingRequests.length]);
+    },
+    3_000,
+    !!family && family.owner_id === user?.id
+  );
 
   // Polling для проверки статуса своей заявки (для обычного участника)
-  useEffect(() => {
-    if (!myJoinRequest || family) return;
-
-    const checkMyRequestStatus = async () => {
+  usePolling(
+    async () => {
       try {
         const myRequestResponse = await api.getMyJoinRequest();
         const request = myRequestResponse.data.request;
-        
+
         if (!request) {
           // Заявка обработана - проверяем, принята ли она
           const profileResponse = await api.getProfile();
@@ -120,7 +116,7 @@ export function FamilyScreen({ onBack }: Props) {
             setMyJoinRequest(null);
           } else {
             // Заявка отклонена - показываем попап отклонения
-            setRejectedFamilyName(myJoinRequest.family_name || 'Семья');
+            setRejectedFamilyName(myJoinRequest?.family_name || 'Семья');
             setShowJoinRejectedPopup(true);
             setMyJoinRequest(null);
           }
@@ -128,22 +124,19 @@ export function FamilyScreen({ onBack }: Props) {
       } catch (error) {
         console.error('Ошибка проверки статуса заявки:', error);
       }
-    };
-
-    const interval = setInterval(checkMyRequestStatus, 3000); // Каждые 3 секунды
-    return () => clearInterval(interval);
-  }, [myJoinRequest, family]);
+    },
+    3_000,
+    !!myJoinRequest && !family
+  );
 
   // Polling для проверки существования семьи (для участников)
-  useEffect(() => {
-    if (!family || family.owner_id === user?.id) return;
-
-    const checkFamilyExists = async () => {
+  usePolling(
+    async () => {
       try {
         const familyResponse = await api.getFamily();
         if (!familyResponse.data.family) {
           // Семья удалена
-          setDeletedFamilyName(family.name);
+          setDeletedFamilyName(family!.name);
           setShowFamilyDeletedPopup(true);
           setFamily(null);
           setMembers([]);
@@ -151,10 +144,10 @@ export function FamilyScreen({ onBack }: Props) {
           // Проверяем, остался ли пользователь в семье
           const currentMembers = familyResponse.data.members || [];
           const isStillMember = currentMembers.some((m: any) => m.id === user?.id);
-          
+
           if (!isStillMember) {
             // Пользователь был удалён из семьи
-            setRemovedFromFamilyName(family.name);
+            setRemovedFromFamilyName(family!.name);
             setShowRemovedFromFamilyPopup(true);
             setFamily(null);
             setMembers([]);
@@ -163,11 +156,10 @@ export function FamilyScreen({ onBack }: Props) {
       } catch (error) {
         console.error('Ошибка проверки семьи:', error);
       }
-    };
-
-    const interval = setInterval(checkFamilyExists, 3000); // Каждые 3 секунды
-    return () => clearInterval(interval);
-  }, [family, user]);
+    },
+    3_000,
+    !!family && family.owner_id !== user?.id
+  );
 
   if (loading) {
     return (

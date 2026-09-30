@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as api from '../services/api';
-import type { Notification } from '../services/api';
+import { usePolling } from '../hooks/usePolling';
+import type { AppNotification as Notification } from '../types';
 import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,33 +23,29 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
   }, []);
 
   // Polling для обновления уведомлений в реальном времени
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await api.getNotifications();
-        const newNotifications = response.data.notifications;
-        
-        // Обновляем список только если есть изменения
-        setNotifications(prev => {
-          const prevIds = new Set(prev.map(n => n.id));
-          const hasNewNotifications = newNotifications.some(n => !prevIds.has(n.id));
-          const hasReadChanges = newNotifications.some(n => {
-            const prevNotif = prev.find(p => p.id === n.id);
-            return prevNotif && prevNotif.is_read !== n.is_read;
-          });
-          
-          if (hasNewNotifications || hasReadChanges) {
-            return newNotifications;
-          }
-          return prev;
-        });
-      } catch (error) {
-        console.error('Ошибка polling уведомлений:', error);
-      }
-    }, 3000); // Каждые 3 секунды
+  usePolling(
+    async () => {
+      const response = await api.getNotifications();
+      const newNotifications = response.data.notifications;
 
-    return () => clearInterval(pollInterval);
-  }, []);
+      // Обновляем список только если есть изменения
+      setNotifications((prev) => {
+        const prevIds = new Set(prev.map((n) => n.id));
+        const hasNewNotifications = newNotifications.some((n) => !prevIds.has(n.id));
+        const hasReadChanges = newNotifications.some((n) => {
+          const prevNotif = prev.find((p) => p.id === n.id);
+          return prevNotif && prevNotif.is_read !== n.is_read;
+        });
+
+        if (hasNewNotifications || hasReadChanges) {
+          return newNotifications;
+        }
+        return prev;
+      });
+    },
+    3_000,
+    !loading
+  );
 
   // Обновляем счётчик непрочитанных
   useEffect(() => {
