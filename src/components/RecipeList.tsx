@@ -24,6 +24,13 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   useEffect(() => {
     loadRecipes();
     loadUserData();
+    
+    // Polling для обновления данных семьи (проверка смены ролей)
+    const familyPollInterval = setInterval(() => {
+      loadUserData();
+    }, 10000); // Каждые 10 секунд
+    
+    return () => clearInterval(familyPollInterval);
   }, []);
 
   const loadUserData = async () => {
@@ -42,19 +49,14 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
 
   // Проверка прав на удаление блюда
   const canDeleteRecipe = (recipe: Recipe): boolean => {
-    if (!currentUser) return false;
-    
-    // Владелец блюда всегда может удалить
-    if (recipe.user_id === currentUser.id) return true;
+    if (!currentUser || !userFamily) return false;
     
     // Глава семьи может удалить любое блюдо
-    if (userFamily && userFamily.owner_id === currentUser.id) return true;
+    if (userFamily.owner_id === currentUser.id) return true;
     
     // Поварушка может удалить любое блюдо
-    if (userFamily) {
-      const member = userFamily.members?.find((m: any) => m.id === currentUser.id);
-      if (member && member.role === 'chef') return true;
-    }
+    const member = userFamily.members?.find((m: any) => m.id === currentUser.id);
+    if (member && member.role === 'chef') return true;
     
     return false;
   };
@@ -275,7 +277,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="grid grid-cols-2 gap-3 py-1"
+                      className="grid grid-cols-2 gap-3 py-2"
                     >
                       {categoryRecipes.map((recipe, index) => (
                         <RecipeGridCard

@@ -325,6 +325,15 @@ function PersonalProfile({
         </div>
       </div>
 
+      {/* Выйти из аккаунта */}
+      <button
+        onClick={onLogout}
+        className="w-full py-3 bg-red-50 text-red-600 font-medium rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+      >
+        <LogOut className="w-5 h-5" />
+        Выйти из аккаунта
+      </button>
+
       {/* Удаление аккаунта */}
       <div className="bg-white rounded-2xl border border-red-200 p-5 space-y-4">
         {!showDeleteConfirm ? (

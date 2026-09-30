@@ -37,30 +37,25 @@ try {
     // Проверка прав на удаление
     $canDelete = false;
     
-    // Владелец блюда может удалить
-    if ($recipe['user_id'] == $userId) {
-        $canDelete = true;
-    } else {
-        // Глава семьи или поварушка могут удалить
-        $stmt = $db->prepare("
-            SELECT f.owner_id, fm.role
-            FROM families f
-            JOIN family_members fm ON f.id = fm.family_id
-            WHERE fm.user_id = ? AND fm.status = 'accepted'
-        ");
-        $stmt->execute([$userId]);
-        $family = $stmt->fetch();
-        
-        if ($family) {
-            // Глава семьи или поварушка
-            if ($family['owner_id'] == $userId || $family['role'] === 'chef') {
-                $canDelete = true;
-            }
+    // Глава семьи или поварушка могут удалить любое блюдо
+    $stmt = $db->prepare("
+        SELECT f.owner_id, fm.role
+        FROM families f
+        JOIN family_members fm ON f.id = fm.family_id
+        WHERE fm.user_id = ? AND fm.status = 'accepted'
+    ");
+    $stmt->execute([$userId]);
+    $family = $stmt->fetch();
+    
+    if ($family) {
+        // Глава семьи или поварушка
+        if ($family['owner_id'] == $userId || $family['role'] === 'chef') {
+            $canDelete = true;
         }
     }
     
     if (!$canDelete) {
-        sendError('У вас нет прав на удаление этого блюда', 403);
+        sendError('У вас нет прав на удаление этого блюда. Только глава семьи или поварушка могут удалять блюда.', 403);
     }
     
     // Удаление блюда
