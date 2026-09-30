@@ -1,39 +1,53 @@
 /**
- * API сервис для работы с backend
+ * API-клиент MealPick.
+ *
+ * Все доменные типы вынесены в src/types; здесь только транспортный слой:
+ * базовый URL (настраивается через VITE_API_BASE_URL), работа с токеном
+ * (через lib/storage) и типизированные обёртки над эндпоинтами PHP-бэкенда.
  */
 
-const API_BASE_URL = 'http://q91929se.beget.tech/backend/api';
+import { readStorage, writeStorage, removeStorage, STORAGE_KEYS } from '../lib/storage';
+import type {
+  ApiEnvelope,
+  EmptyResponse,
+  Family,
+  FamilyMember,
+  FamilyStatus,
+  Ingredient,
+  CookingStep,
+  JoinRequest,
+  LoginData,
+  AppNotification,
+  Recipe,
+  RegisterData,
+  SwipeMode,
+  CreateSwipeRequestData,
+  User,
+} from '../types';
 
-/**
- * Получение токена из localStorage
- */
+const API_BASE_URL =
+  ((import.meta as any).env?.VITE_API_BASE_URL as string | undefined) ??
+  'http://q91929se.beget.tech/backend/api';
+
+// ==================== TOKEN ====================
+
 function getToken(): string | null {
-  return localStorage.getItem('auth_token');
+  return readStorage(STORAGE_KEYS.authToken);
 }
 
-/**
- * Установка токена в localStorage
- */
 function setToken(token: string): void {
-  localStorage.setItem('auth_token', token);
+  writeStorage(STORAGE_KEYS.authToken, token);
 }
 
-/**
- * Удаление токена из localStorage
- */
 function removeToken(): void {
-  localStorage.removeItem('auth_token');
+  removeStorage(STORAGE_KEYS.authToken);
 }
 
-/**
- * Базовая функция для выполнения запросов
- */
-async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+// ==================== TRANSPORT ====================
+
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
-  
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -61,55 +75,24 @@ async function apiRequest<T>(
     headers,
   });
 
-  const data = await response.json();
+  const data = (await response.json()) as ApiEnvelope<unknown> & { success: boolean };
 
   if (!response.ok || !data.success) {
     throw new Error(data.message || 'Ошибка запроса');
   }
 
-  return data;
+  return data as T;
 }
 
 // ==================== AUTH ====================
 
-export interface RegisterData {
-  email: string;
-  username: string;
-  password: string;
-  name: string;
-  avatar?: string;
-  description?: string;
-}
-
-export interface LoginData {
-  login: string;
-  password: string;
-}
-
-export interface User {
-  id: number;
-  email: string;
-  username: string;
-  name: string;
-  avatar: string;
-  description: string | null;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message: string;
-  data: {
-    token: string;
-    user: User;
-  };
-}
+export type AuthResponse = ApiEnvelope<{ token: string; user: User }>;
 
 export async function register(data: RegisterData): Promise<AuthResponse> {
   const response = await apiRequest<AuthResponse>('/auth/register.php', {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  
   setToken(response.data.token);
   return response;
 }
@@ -119,7 +102,6 @@ export async function login(data: LoginData): Promise<AuthResponse> {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  
   setToken(response.data.token);
   return response;
 }
@@ -130,221 +112,141 @@ export function logout(): void {
 
 // ==================== USER ====================
 
-export interface ProfileResponse {
-  success: boolean;
-  data: {
-    user: User;
-    family: Family | null;
-    status: FamilyStatus | null;
-  };
-}
+export type ProfileResponse = ApiEnvelope<{
+  user: User;
+  family: Family | null;
+  status: FamilyStatus | null;
+}>;
 
 export async function getProfile(): Promise<ProfileResponse> {
-  return apiRequest<ProfileResponse>('/user/profile.php', {
-    method: 'GET',
-  });
+  return apiRequest<ProfileResponse>('/user/profile.php', { method: 'GET' });
 }
 
-export async function updateProfile(data: Partial<User> & { password?: string }): Promise<any> {
-  return apiRequest('/user/update.php', {
+export async function updateProfile(
+  data: Partial<User> & { password?: string },
+): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/user/update.php', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteAccount(): Promise<any> {
-  return apiRequest('/user/delete.php', {
-    method: 'DELETE',
-  });
+export async function deleteAccount(): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/user/delete.php', { method: 'DELETE' });
 }
 
 // ==================== FAMILY ====================
 
-export interface Family {
-  id: number;
-  name: string;
-  avatar: string;
-  description: string | null;
-  owner_id: number;
-  invite_link: string;
-  created_at: string;
-  role?: string;
-}
+export type FamilyResponse = ApiEnvelope<{
+  family: Family | null;
+  members: FamilyMember[];
+  pendingRequests: JoinRequest[];
+}>;
 
-export interface FamilyMember {
-  id: number;
-  name: string;
-  avatar: string;
-  email: string;
-  role: string;
-  joined_at: string;
-  status: FamilyStatus | null;
-}
-
-export interface FamilyStatus {
-  title: string;
-  emoji: string;
-}
-
-export interface JoinRequest {
-  id: number;
-  user_id: number;
-  name: string;
-  avatar: string;
-  email: string;
-  created_at: string;
-}
-
-export interface FamilyResponse {
-  success: boolean;
-  data: {
-    family: Family | null;
-    members: FamilyMember[];
-    pendingRequests: JoinRequest[];
-  };
-}
+export interface MyJoinRequestResponse
+  extends ApiEnvelope<{ request: (JoinRequest & { family_name?: string }) | null }> {}
 
 export async function createFamily(data: {
   name: string;
   avatar?: string;
   description?: string;
-}): Promise<any> {
-  return apiRequest('/family/create.php', {
+}): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/create.php', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
 export async function getFamily(): Promise<FamilyResponse> {
-  return apiRequest<FamilyResponse>('/family/get.php', {
-    method: 'GET',
-  });
+  return apiRequest<FamilyResponse>('/family/get.php', { method: 'GET' });
 }
 
 export async function updateFamily(data: {
   name?: string;
   avatar?: string;
-}): Promise<any> {
-  return apiRequest('/family/update.php', {
+}): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/update.php', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export async function joinFamily(inviteLink: string): Promise<any> {
-  return apiRequest('/family/join.php', {
+export async function joinFamily(inviteLink: string): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/join.php', {
     method: 'POST',
     body: JSON.stringify({ invite_link: inviteLink }),
   });
 }
 
-export async function getMyJoinRequest(): Promise<any> {
-  return apiRequest('/family/my-request.php', {
-    method: 'GET',
-  });
+export async function getMyJoinRequest(): Promise<MyJoinRequestResponse> {
+  return apiRequest<MyJoinRequestResponse>('/family/my-request.php', { method: 'GET' });
 }
 
-export async function respondToJoinRequest(requestId: number, accept: boolean): Promise<any> {
-  return apiRequest('/family/respond-request.php', {
+export async function respondToJoinRequest(
+  requestId: number,
+  accept: boolean,
+): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/respond-request.php', {
     method: 'POST',
     body: JSON.stringify({ request_id: requestId, accept }),
   });
 }
 
-export async function addFamilyStatus(userId: number, title: string, emoji: string): Promise<any> {
-  return apiRequest('/family/add-status.php', {
+export async function addFamilyStatus(
+  userId: number,
+  title: string,
+  emoji: string,
+): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/add-status.php', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, title, emoji }),
   });
 }
 
-export async function removeFamilyStatus(userId: number): Promise<any> {
-  return apiRequest('/family/remove-status.php', {
+export async function removeFamilyStatus(userId: number): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/remove-status.php', {
     method: 'DELETE',
     body: JSON.stringify({ user_id: userId }),
   });
 }
 
-export async function removeFamilyMember(memberId: number): Promise<any> {
-  return apiRequest('/family/remove-member.php', {
+export async function removeFamilyMember(memberId: number): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/remove-member.php', {
     method: 'DELETE',
     body: JSON.stringify({ member_id: memberId }),
   });
 }
 
-export async function assignFamilyRole(userId: number, role: string): Promise<any> {
-  return apiRequest('/family/assign-role.php', {
+export async function assignFamilyRole(
+  userId: number,
+  role: string,
+): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/assign-role.php', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, role }),
   });
 }
 
-export async function leaveFamily(): Promise<any> {
-  return apiRequest('/family/leave.php', {
-    method: 'POST',
-  });
+export async function leaveFamily(): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/leave.php', { method: 'POST' });
 }
 
-export async function transferOwnership(newOwnerId: number): Promise<any> {
-  return apiRequest('/family/transfer-ownership.php', {
+export async function transferOwnership(newOwnerId: number): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/transfer-ownership.php', {
     method: 'POST',
     body: JSON.stringify({ new_owner_id: newOwnerId }),
   });
 }
 
-export async function deleteFamily(): Promise<any> {
-  return apiRequest('/family/delete.php', {
-    method: 'DELETE',
-  });
+export async function deleteFamily(): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/family/delete.php', { method: 'DELETE' });
 }
 
 // ==================== RECIPES ====================
 
-export interface Ingredient {
-  id?: string;
-  name: string;
-  amount?: string;
-  unit?: string;
-}
+export type RecipesResponse = ApiEnvelope<{ recipes: Recipe[] }>;
 
-export interface CookingStep {
-  id?: string;
-  title: string;
-  text: string;
-  imageUrl?: string;
-}
-
-export interface Recipe {
-  id: number;
-  user_id: number;
-  name: string;
-  description: string | null;
-  image_urls: string[];
-  video_url: string | null;
-  meal_type: string;
-  ingredients: Ingredient[];
-  cooking_steps: CookingStep[];
-  paired_recipe_ids: number[];
-  created_at: string;
-  updated_at: string;
-  author_name: string;
-  author_avatar: string;
-}
-
-export interface RecipesResponse {
-  success: boolean;
-  data: {
-    recipes: Recipe[];
-  };
-}
-
-export async function getRecipes(): Promise<RecipesResponse> {
-  return apiRequest<RecipesResponse>('/recipes/list.php', {
-    method: 'GET',
-  });
-}
-
-export async function createRecipe(data: {
+export interface RecipeInput {
   name: string;
   description?: string;
   image_urls?: string[];
@@ -353,31 +255,33 @@ export async function createRecipe(data: {
   ingredients?: Ingredient[];
   cooking_steps?: CookingStep[];
   paired_recipe_ids?: number[];
-}): Promise<any> {
-  return apiRequest('/recipes/create.php', {
+}
+
+export async function getRecipes(): Promise<RecipesResponse> {
+  return apiRequest<RecipesResponse>('/recipes/list.php', { method: 'GET' });
+}
+
+export async function createRecipe(
+  data: RecipeInput,
+): Promise<ApiEnvelope<{ recipe: Recipe }>> {
+  return apiRequest<ApiEnvelope<{ recipe: Recipe }>>('/recipes/create.php', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function updateRecipe(recipeId: number, data: {
-  name?: string;
-  description?: string;
-  image_urls?: string[];
-  video_url?: string;
-  meal_type?: string;
-  ingredients?: Ingredient[];
-  cooking_steps?: CookingStep[];
-  paired_recipe_ids?: number[];
-}): Promise<any> {
-  return apiRequest('/recipes/update.php', {
+export async function updateRecipe(
+  recipeId: number,
+  data: Partial<RecipeInput>,
+): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/recipes/update.php', {
     method: 'PUT',
     body: JSON.stringify({ recipe_id: recipeId, ...data }),
   });
 }
 
-export async function deleteRecipe(recipeId: number): Promise<any> {
-  return apiRequest('/recipes/delete.php', {
+export async function deleteRecipe(recipeId: number): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/recipes/delete.php', {
     method: 'DELETE',
     body: JSON.stringify({ recipe_id: recipeId }),
   });
@@ -385,33 +289,13 @@ export async function deleteRecipe(recipeId: number): Promise<any> {
 
 // ==================== NOTIFICATIONS ====================
 
-export interface Notification {
-  id: number;
-  user_id: number;
-  type: 'swipe_request' | 'swipe_response' | 'family_join_request' | 'family_join_response';
-  from_user_id: number;
-  message: string;
-  sender_message: string | null;
-  request_id: number | null;
-  family_join_request_id: number | null;
-  is_read: boolean;
-  created_at: string;
-  from_user_name: string;
-  from_user_avatar: string;
-}
-
-export interface NotificationsResponse {
-  success: boolean;
-  data: {
-    notifications: Notification[];
-    unreadCount: number;
-  };
-}
+export type NotificationsResponse = ApiEnvelope<{
+  notifications: AppNotification[];
+  unreadCount: number;
+}>;
 
 export async function getNotifications(): Promise<NotificationsResponse> {
-  return apiRequest<NotificationsResponse>('/notifications/list.php', {
-    method: 'GET',
-  });
+  return apiRequest<NotificationsResponse>('/notifications/list.php', { method: 'GET' });
 }
 
 export async function updateNotifications(data: {
@@ -419,8 +303,8 @@ export async function updateNotifications(data: {
   notification_ids?: number[];
   mark_all_read?: boolean;
   delete_ids?: number[];
-}): Promise<any> {
-  return apiRequest('/notifications/update.php', {
+}): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/notifications/update.php', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
@@ -428,22 +312,44 @@ export async function updateNotifications(data: {
 
 // ==================== SWIPE REQUESTS ====================
 
-export async function getSwipeRequest(requestId: number): Promise<any> {
-  return apiRequest(`/swipe/get.php?id=${requestId}`, {
-    method: 'GET',
-  });
+export interface SwipeRequestDto {
+  id: number;
+  from_user_id: number;
+  to_user_id: number;
+  mode: SwipeMode;
+  category: string | null;
+  message: string | null;
+  status: string;
+  recipe_ids: number[];
+  selected_recipe_ids: number[] | null;
+  created_at: string;
+  responded_at: string | null;
+  from_user_name?: string;
+  from_user_avatar?: string;
+  [key: string]: unknown;
 }
 
-export async function createSwipeRequest(data: {
-  recipe_ids: number[];
-  to_user_id?: number;
-  to_family_id?: number;
-  mode?: 'category' | 'select' | 'delivery';
-  category?: string;
-  message?: string;
-  delivery_ids?: number[];
-}): Promise<any> {
-  return apiRequest('/swipe/create.php', {
+export interface SwipeRequestDetailData {
+  request: SwipeRequestDto;
+  recipes: Recipe[];
+  deliveries: unknown[];
+  family_members: Pick<User, 'id' | 'name' | 'avatar'>[];
+  to_user: Pick<User, 'id' | 'name' | 'avatar'> | null;
+}
+
+export async function getSwipeRequest(
+  requestId: number,
+): Promise<ApiEnvelope<SwipeRequestDetailData>> {
+  return apiRequest<ApiEnvelope<SwipeRequestDetailData>>(
+    `/swipe/get.php?id=${requestId}`,
+    { method: 'GET' },
+  );
+}
+
+export async function createSwipeRequest(
+  data: CreateSwipeRequestData,
+): Promise<ApiEnvelope<{ request: SwipeRequestDto }>> {
+  return apiRequest<ApiEnvelope<{ request: SwipeRequestDto }>>('/swipe/create.php', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -451,9 +357,9 @@ export async function createSwipeRequest(data: {
 
 export async function respondToSwipeRequest(
   requestId: number,
-  selectedRecipeIds: number[]
-): Promise<any> {
-  return apiRequest('/swipe/respond.php', {
+  selectedRecipeIds: number[],
+): Promise<EmptyResponse> {
+  return apiRequest<EmptyResponse>('/swipe/respond.php', {
     method: 'POST',
     body: JSON.stringify({
       request_id: requestId,
@@ -471,7 +377,7 @@ export function isAuthenticated(): boolean {
 export function getCurrentUser(): User | null {
   const token = getToken();
   if (!token) return null;
-  
+
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return {
@@ -486,3 +392,19 @@ export function getCurrentUser(): User | null {
     return null;
   }
 }
+
+// Реэкспорт типов для обратной совместимости импортов вида
+// `import type { Recipe } from './services/api'`.
+export type {
+  Family,
+  FamilyMember,
+  FamilyStatus,
+  Ingredient,
+  CookingStep,
+  JoinRequest,
+  AppNotification as Notification,
+  Recipe,
+  RegisterData,
+  LoginData,
+  User,
+};

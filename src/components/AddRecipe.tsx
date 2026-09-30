@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import * as api from '../services/api';
-import type { Ingredient, CookingStep, Recipe } from '../services/api';
+import type { Ingredient, CookingStep, Recipe } from '../types';
 import { ArrowLeft, Plus, X, Image as ImageIcon, Upload, Trash2, Link2, ChefHat, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MEAL_TYPES } from '../constants';

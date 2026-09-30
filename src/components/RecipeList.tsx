@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import * as api from '../services/api';
 import { Clock, Trash2, ChevronDown, ChevronUp, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Recipe } from '../services/api';
+import type { Recipe } from '../types';
+import type { Family, FamilyMember, User } from '../types';
+import { usePolling } from '../hooks/usePolling';
 import { MEAL_TYPES } from '../constants';
 
 type ViewMode = 'list' | 'grid';
@@ -18,19 +20,11 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [userFamily, setUserFamily] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userFamily, setUserFamily] = useState<(Family & { members?: FamilyMember[] }) | null>(null);
 
   useEffect(() => {
     loadRecipes();
-    loadUserData();
-    
-    // Polling для обновления данных семьи (проверка смены ролей)
-    const familyPollInterval = setInterval(() => {
-      loadUserData();
-    }, 10000); // Каждые 10 секунд
-    
-    return () => clearInterval(familyPollInterval);
   }, []);
 
   const loadUserData = async () => {
@@ -47,6 +41,9 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
     }
   };
 
+  // Polling для обновления данных семьи (проверка смены ролей)
+  usePolling(loadUserData, 10_000, true, true);
+
   // Проверка прав на удаление блюда
   const canDeleteRecipe = (recipe: Recipe): boolean => {
     if (!currentUser || !userFamily) return false;
@@ -55,7 +52,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
     if (userFamily.owner_id === currentUser.id) return true;
     
     // Поварушка может удалить любое блюдо
-    const member = userFamily.members?.find((m: any) => m.id === currentUser.id);
+    const member = userFamily.members?.find((m) => m.id === currentUser.id);
     if (member && member.role === 'chef') return true;
     
     return false;

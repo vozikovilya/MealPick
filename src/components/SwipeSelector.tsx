@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as api from '../services/api';
-import type { Recipe } from '../services/api';
+import type { Recipe } from '../types';
 import { X, Heart, Check, ArrowLeft, Send, Info } from 'lucide-react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 

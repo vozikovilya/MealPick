@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import * as api from '../services/api';
 import { User, ArrowLeft, Edit2, LogOut, Check, Trash2, Mail, Lock, AtSign, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { User as UserType, Family } from '../services/api';
+import type { User as UserType, Family } from '../types';
 
 interface Props {
   onBack: () => void;
