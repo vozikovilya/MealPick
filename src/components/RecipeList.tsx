@@ -227,7 +227,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="space-y-3 py-1"
+                      className="space-y-3 py-2"
                     >
                       {categoryRecipes.map((recipe, index) => (
                         <RecipeCard
