@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import * as api from '../services/api';
 import type { Notification } from '../services/api';
-import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare } from 'lucide-react';
+import { ArrowRight, CheckCheck, Inbox, Check, Trash2, CheckSquare, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
@@ -17,12 +17,37 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
   
-  // Refs для Intersection Observer
-  const notificationRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const visibilityTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-
   useEffect(() => {
     loadNotifications();
+  }, []);
+
+  // Polling для обновления уведомлений в реальном времени
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await api.getNotifications();
+        const newNotifications = response.data.notifications;
+        
+        // Обновляем список только если есть изменения
+        setNotifications(prev => {
+          const prevIds = new Set(prev.map(n => n.id));
+          const hasNewNotifications = newNotifications.some(n => !prevIds.has(n.id));
+          const hasReadChanges = newNotifications.some(n => {
+            const prevNotif = prev.find(p => p.id === n.id);
+            return prevNotif && prevNotif.is_read !== n.is_read;
+          });
+          
+          if (hasNewNotifications || hasReadChanges) {
+            return newNotifications;
+          }
+          return prev;
+        });
+      } catch (error) {
+        console.error('Ошибка polling уведомлений:', error);
+      }
+    }, 3000); // Каждые 3 секунды
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Обновляем счётчик непрочитанных
@@ -32,51 +57,6 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
       onUnreadCountChange(unreadCount);
     }
   }, [notifications, onUnreadCountChange]);
-
-  // Intersection Observer для автоматического прочтения
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const notificationId = Number(entry.target.getAttribute('data-notification-id'));
-          const notification = notifications.find((n) => n.id === notificationId);
-          
-          if (!notification || notification.is_read) return;
-
-          if (entry.isIntersecting) {
-            // Уведомление стало видимым - запускаем таймер
-            const timer = setTimeout(() => {
-              handleMarkAsRead(notificationId);
-            }, 2000); // 2 секунды
-            
-            visibilityTimers.current.set(notificationId, timer);
-          } else {
-            // Уведомление стало невидимым - отменяем таймер
-            const timer = visibilityTimers.current.get(notificationId);
-            if (timer) {
-              clearTimeout(timer);
-              visibilityTimers.current.delete(notificationId);
-            }
-          }
-        });
-      },
-      {
-        threshold: 0.5, // Уведомление считается видимым, если 50% его площади в зоне видимости
-      }
-    );
-
-    // Наблюдаем за всеми уведомлениями
-    notificationRefs.current.forEach((element) => {
-      observer.observe(element);
-    });
-
-    return () => {
-      observer.disconnect();
-      // Очищаем все таймеры
-      visibilityTimers.current.forEach((timer) => clearTimeout(timer));
-      visibilityTimers.current.clear();
-    };
-  }, [notifications]);
 
   const loadNotifications = async () => {
     try {
@@ -141,14 +121,7 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
     }
   };
 
-  const handleMarkAsRead = async (notificationId: number) => {
-    try {
-      await api.updateNotifications({ notification_id: notificationId });
-      await loadNotifications();
-    } catch (error) {
-      console.error('Ошибка обновления уведомления:', error);
-    }
-  };
+
 
   const toggleSelectionMode = () => {
     if (selectionMode) {
@@ -164,26 +137,43 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="w-12 h-12 border-b-2 border-orange-500 rounded-full mx-auto mb-4"
+          ></motion.div>
           <p className="text-gray-600">Загрузка уведомлений...</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (notifications.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Inbox className="w-10 h-10 text-gray-300" />
-        </div>
-        <h2 className="text-lg font-semibold text-gray-700 mb-1">Нет уведомлений</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="text-center py-16"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+          className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <Inbox className="w-10 h-10 text-gray-400" />
+        </motion.div>
+        <h2 className="text-lg font-bold text-gray-800 mb-1">Нет уведомлений</h2>
         <p className="text-sm text-gray-500">
           Когда вам придут запросы или ответы, они появятся здесь
         </p>
-      </div>
+      </motion.div>
     );
   }
 
@@ -192,11 +182,20 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-gray-800">Уведомления</h2>
-          {unreadCount > 0 && (
-            <span className="px-2.5 py-1 text-xs font-semibold text-white bg-red-500 rounded-full">
-              {unreadCount}
-            </span>
-          )}
+          <AnimatePresence>
+            {unreadCount > 0 && (
+              <motion.span
+                key={unreadCount}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="px-2.5 py-1 text-xs font-semibold text-white bg-red-500 rounded-full"
+              >
+                {unreadCount}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
@@ -280,7 +279,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
         )}
       </AnimatePresence>
 
-      <div className="space-y-3">
+      <AnimatePresence initial={false}>
+        <div className="space-y-3">
         {sortedNotifications.map((notif, index) => {
           const isSelected = selectedIds.includes(notif.id);
           const isSwipeRequest = notif.type === 'swipe_request';
@@ -291,17 +291,11 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
           return (
             <motion.div
               key={notif.id}
-              ref={(el) => {
-                if (el) {
-                  notificationRefs.current.set(notif.id, el);
-                } else {
-                  notificationRefs.current.delete(notif.id);
-                }
-              }}
-              data-notification-id={notif.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               className={`p-4 rounded-2xl border-2 transition-all ${
                 !notif.is_read
                   ? 'border-orange-400 bg-orange-50/30 shadow-md shadow-orange-100'
@@ -357,9 +351,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
                   {/* Action buttons */}
                   {isSwipeRequest && notif.request_id && !selectionMode && (
                     <button
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        await handleMarkAsRead(notif.id);
                         onOpenSwipe(notif.request_id!);
                       }}
                       className="mt-3 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-1.5"
@@ -371,9 +364,8 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
 
                   {isSwipeResponse && notif.request_id && !selectionMode && (
                     <button
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        await handleMarkAsRead(notif.id);
                         if (onViewDetails) {
                           onViewDetails(notif.request_id!);
                         } else {
@@ -388,17 +380,33 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
                   )}
 
                   {isFamilyJoinRequest && !selectionMode && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-purple-600">
-                      <span>👋</span>
-                      <span>Заявка на вступление в семью</span>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Переход в блок "Семья" будет обработан в App.tsx
+                        window.location.hash = '#family';
+                      }}
+                      className="mt-3 px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-xl hover:bg-purple-600 transition-colors flex items-center gap-1.5"
+                    >
+                      <Users className="w-4 h-4" />
+                      Перейти в семью
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   )}
 
                   {isFamilyJoinResponse && !selectionMode && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-purple-600">
-                      <span>👨‍👩‍👧‍👦</span>
-                      <span>Ответ на заявку в семью</span>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Переход в блок "Семья" будет обработан в App.tsx
+                        window.location.hash = '#family';
+                      }}
+                      className="mt-3 px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-xl hover:bg-purple-600 transition-colors flex items-center gap-1.5"
+                    >
+                      <Users className="w-4 h-4" />
+                      Перейти в семью
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
               </div>
@@ -406,6 +414,7 @@ export function Notifications({ onOpenSwipe, onViewResults, onViewDetails, onUnr
           );
         })}
       </div>
+      </AnimatePresence>
     </div>
   );
 }

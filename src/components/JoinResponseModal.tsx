@@ -78,10 +78,12 @@ export function JoinResponseModal({
                   <p className="text-gray-600 mb-2">
                     Поздравляем! Вы теперь часть семьи
                   </p>
-                  <p className="text-lg font-semibold text-purple-600">
-                    "{familyName}"
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 mb-3">
+                    <p className="text-lg font-bold text-green-700">
+                      "{familyName}"
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-500">
                     Теперь вы можете выбирать блюда вместе с вашей семьёй! 🎉
                   </p>
                 </>
@@ -90,10 +92,12 @@ export function JoinResponseModal({
                   <p className="text-gray-600 mb-2">
                     К сожалению, ваша заявка на вступление в семью
                   </p>
-                  <p className="text-lg font-semibold text-gray-700">
-                    "{familyName}"
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-3">
+                    <p className="text-lg font-bold text-gray-700">
+                      "{familyName}"
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-500">
                     была отклонена. Не расстраивайтесь, вы можете создать свою собственную семью! 💪
                   </p>
                 </>

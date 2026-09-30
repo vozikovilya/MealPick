@@ -4,40 +4,13 @@ import type { Recipe, Family, FamilyMember } from '../services/api';
 import { Send, Check, List, Truck, MessageCircle, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { RequestSentModal } from './RequestSentModal';
+import { MEAL_TYPES, DELIVERY_OPTIONS, CUTE_MESSAGES } from '../constants';
 
 interface Props {
   onDone: () => void;
 }
 
 type SendMode = 'category' | 'select' | 'delivery';
-
-const cuteMessages = [
-  'Люблю тебя! ❤️',
-  'Что будем кушать?',
-  'Голодный(ая) 😋',
-  'Выбирай скорее!',
-  'Удиви меня!',
-  'Давай что-нибудь вкусненькое?',
-  'Я доверяю твоему вкусу!',
-  'Что-то особенное сегодня?',
-];
-
-// Стандартные категории блюд
-const mealTypes = [
-  { id: 'breakfast', name: 'Завтрак', emoji: '🌅' },
-  { id: 'lunch', name: 'Обед', emoji: '☀️' },
-  { id: 'dinner', name: 'Ужин', emoji: '🌙' },
-];
-
-// Опции доставки
-const deliveryOptions = [
-  { id: 'd1', name: 'Суши', emoji: '🍣', description: 'Японская кухня' },
-  { id: 'd2', name: 'Пицца', emoji: '🍕', description: 'Итальянская кухня' },
-  { id: 'd3', name: 'Бургеры', emoji: '🍔', description: 'Фастфуд' },
-  { id: 'd4', name: 'Вок', emoji: '🍜', description: 'Азиатская кухня' },
-  { id: 'd5', name: 'Шаурма', emoji: '🌯', description: 'Восточная кухня' },
-  { id: 'd6', name: 'Салаты', emoji: '🥗', description: 'Здоровая еда' },
-];
 
 export function SendRequest({ onDone }: Props) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -189,12 +162,20 @@ export function SendRequest({ onDone }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="w-12 h-12 border-b-2 border-orange-500 rounded-full mx-auto mb-4"
+          ></motion.div>
           <p className="text-gray-600">Загрузка...</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -247,7 +228,7 @@ export function SendRequest({ onDone }: Props) {
     );
   }
 
-  const categoryOptions = mealTypes.map((mt) => ({
+  const categoryOptions = MEAL_TYPES.map((mt) => ({
     value: mt.id,
     label: mt.name,
     emoji: mt.emoji,
@@ -443,7 +424,7 @@ export function SendRequest({ onDone }: Props) {
           </h3>
           <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
             {/* Основные категории */}
-            {mealTypes.map((mealType) => {
+            {MEAL_TYPES.map((mealType) => {
               const categoryRecipes = recipes.filter(r => r.meal_type === mealType.id);
               if (categoryRecipes.length === 0) return null;
               
@@ -504,7 +485,7 @@ export function SendRequest({ onDone }: Props) {
             Выберите доставку ({selectedDeliveries.length} выбрано)
           </h3>
           <div className="grid grid-cols-2 gap-3">
-            {deliveryOptions.map((delivery) => {
+            {DELIVERY_OPTIONS.map((delivery) => {
               const isSelected = selectedDeliveries.includes(delivery.id);
               return (
                 <button
@@ -547,7 +528,7 @@ export function SendRequest({ onDone }: Props) {
           className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm resize-none"
         />
         <div className="flex flex-wrap gap-1.5">
-          {cuteMessages.map((msg, i) => (
+          {CUTE_MESSAGES.map((msg, i) => (
             <button
               key={i}
               onClick={() => setMessage(msg)}

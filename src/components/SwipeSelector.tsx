@@ -38,28 +38,47 @@ export function SwipeSelector({ requestId, onDone }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="w-12 h-12 border-b-2 border-orange-500 rounded-full mx-auto mb-4"
+          ></motion.div>
           <p className="text-gray-600">Загрузка запроса...</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (!request || recipes.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="text-6xl mb-4">📭</div>
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">Запрос не найден</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="text-center py-16"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+          className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <span className="text-5xl">📭</span>
+        </motion.div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Запрос не найден</h2>
         <p className="text-gray-500 mb-6">Возможно, он был удалён или уже обработан</p>
         <button
           onClick={onDone}
-          className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition-colors"
+          className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-xl transition-all"
         >
           Вернуться к уведомлениям
         </button>
-      </div>
+      </motion.div>
     );
   }
 

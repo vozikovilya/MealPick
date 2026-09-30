@@ -50,7 +50,7 @@ export function ToastNotifications({ notifications, onClose, onAction }: ToastNo
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold text-gray-800 text-sm truncate">
+                    <h4 className="font-bold text-gray-800 text-sm truncate">
                       {notification.title}
                     </h4>
                     {notification.type === 'swipe_request' ? (
@@ -65,10 +65,10 @@ export function ToastNotifications({ notifications, onClose, onAction }: ToastNo
                   {notification.onAction && (
                     <button
                       onClick={() => onAction(notification)}
-                      className={`w-full py-2 text-sm font-medium rounded-lg transition-colors ${
+                      className={`w-full py-2 text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md ${
                         notification.type === 'swipe_request'
-                          ? 'bg-orange-500 text-white hover:bg-orange-600'
-                          : 'bg-green-500 text-white hover:bg-green-600'
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
                       }`}
                     >
                       {notification.type === 'swipe_request' ? 'Выбрать блюда' : 'Посмотреть выбор'}

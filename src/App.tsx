@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as api from './services/api';
 import type { Recipe } from './services/api';
 import { RecipeList } from './components/RecipeList';
@@ -10,10 +11,13 @@ import { SelectedResults } from './components/SelectedResults';
 import { SwipeRequestDetails } from './components/SwipeRequestDetails';
 import { AuthScreen } from './components/AuthScreen';
 import { ProfileScreen } from './components/ProfileScreen';
+import { FamilyScreen } from './components/FamilyScreen';
 import { ToastNotifications, ToastNotification } from './components/ToastNotifications';
-import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User } from 'lucide-react';
+import { UIDemo } from './components/UIDemo';
+import { AllComponentsDemo } from './components/AllComponentsDemo';
+import { ChefHat, Bell, Send, UtensilsCrossed, Plus, User, Users, Palette } from 'lucide-react';
 
-type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile';
+type Screen = 'recipes' | 'add' | 'edit' | 'send' | 'swipe' | 'notifications' | 'results' | 'details' | 'profile' | 'family' | 'ui-demo' | 'all-components';
 
 function App() {
   // Восстанавливаем сохранённый экран из localStorage
@@ -25,6 +29,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [toastNotifications, setToastNotifications] = useState<ToastNotification[]>([]);
 
   // Refs для callback функций (паттерн "latest ref")
@@ -35,6 +40,21 @@ function App() {
   useEffect(() => {
     localStorage.setItem('currentScreen', screen);
   }, [screen]);
+
+  // Обработка hash для перехода в блок "Семья"
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#family') {
+        setScreen('family');
+        window.location.hash = '';
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange(); // Проверяем hash при загрузке
+
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Проверка авторизации при загрузке
   useEffect(() => {
@@ -50,6 +70,12 @@ function App() {
             (n) => !n.is_read && n.type === 'swipe_request'
           ).length;
           setUnreadCount(count);
+          
+          // Проверяем количество заявок на вступление (для главы семьи)
+          if (profile.data.family && profile.data.family.owner_id === profile.data.user.id) {
+            const familyResponse = await api.getFamily();
+            setPendingRequestsCount(familyResponse.data.pendingRequests?.length || 0);
+          }
         } catch (error) {
           api.logout();
           setIsAuthenticated(false);
@@ -58,6 +84,28 @@ function App() {
     };
     checkAuth();
   }, []);
+
+  // Polling для проверки количества заявок на вступление
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    const checkPendingRequests = async () => {
+      try {
+        const profile = await api.getProfile();
+        if (profile.data.family && profile.data.family.owner_id === currentUser.id) {
+          const familyResponse = await api.getFamily();
+          setPendingRequestsCount(familyResponse.data.pendingRequests?.length || 0);
+        } else {
+          setPendingRequestsCount(0);
+        }
+      } catch (error) {
+        console.error('Ошибка проверки заявок:', error);
+      }
+    };
+
+    const interval = setInterval(checkPendingRequests, 5000); // Каждые 5 секунд
+    return () => clearInterval(interval);
+  }, [isAuthenticated, currentUser]);
 
   // Функция для удаления toast уведомления
   const removeToastNotification = (id: string) => {
@@ -216,14 +264,55 @@ function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setScreen('notifications')}
-              className="relative p-2 rounded-full hover:bg-orange-50 transition-colors"
+              onClick={() => setScreen('ui-demo')}
+              className={`p-2 rounded-full transition-all ${
+                screen === 'ui-demo'
+                  ? 'bg-gradient-to-br from-orange-100 to-amber-100 shadow-md shadow-orange-200'
+                  : 'hover:bg-orange-50'
+              }`}
+              title="UI Library Demo"
             >
-              <Bell className="w-5 h-5 text-gray-600" />
+              <svg className={`w-5 h-5 transition-colors ${
+                screen === 'ui-demo' ? 'text-orange-600' : 'text-gray-600'
+              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setScreen('all-components')}
+              className={`p-2 rounded-full transition-all ${
+                screen === 'all-components'
+                  ? 'bg-gradient-to-br from-purple-100 to-pink-100 shadow-md shadow-purple-200'
+                  : 'hover:bg-purple-50'
+              }`}
+              title="Все компоненты"
+            >
+              <Palette className={`w-5 h-5 transition-colors ${
+                screen === 'all-components' ? 'text-purple-600' : 'text-gray-600'
+              }`} />
+            </button>
+            <button
+              onClick={() => setScreen('notifications')}
+              className={`relative p-2 rounded-full transition-all ${
+                screen === 'notifications'
+                  ? 'bg-gradient-to-br from-orange-100 to-amber-100 shadow-md shadow-orange-200'
+                  : 'hover:bg-orange-50'
+              }`}
+            >
+              <Bell className={`w-5 h-5 transition-colors ${
+                screen === 'notifications' ? 'text-orange-600' : 'text-gray-600'
+              }`} />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                <motion.span
+                  key={unreadCount}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold"
+                >
                   {unreadCount}
-                </span>
+                </motion.span>
               )}
             </button>
             <button
@@ -242,62 +331,83 @@ function App() {
 
       {/* Content */}
       <main className="max-w-lg mx-auto px-4 py-6 pb-24">
-        {screen === 'recipes' && (
-          <RecipeList
-            onEditRecipe={(recipe) => {
-              setEditingRecipe(recipe);
-              setScreen('edit');
-            }}
-            onAddRecipe={() => setScreen('add')}
-          />
-        )}
-        {screen === 'add' && <AddRecipe onDone={() => setScreen('recipes')} />}
-        {screen === 'edit' && editingRecipe && (
-          <AddRecipe
-            onDone={() => {
-              setEditingRecipe(null);
-              setScreen('recipes');
-            }}
-            editRecipe={editingRecipe}
-          />
-        )}
-        {screen === 'send' && <SendRequest onDone={() => setScreen('recipes')} />}
-        {screen === 'swipe' && activeRequestId && (
-          <SwipeSelector
-            requestId={activeRequestId}
-            onDone={() => {
-              setScreen('notifications');
-              setActiveRequestId(null);
-            }}
-          />
-        )}
-        {screen === 'notifications' && (
-          <Notifications
-            onOpenSwipe={handleOpenSwipe}
-            onViewResults={handleViewResults}
-            onViewDetails={handleViewDetails}
-            onUnreadCountChange={setUnreadCount}
-          />
-        )}
-        {screen === 'results' && activeRequestId && (
-          <SelectedResults
-            requestId={activeRequestId}
-            onBack={() => setScreen('notifications')}
-          />
-        )}
-        {screen === 'details' && activeRequestId && (
-          <SwipeRequestDetails
-            requestId={activeRequestId}
-            onBack={() => setScreen('notifications')}
-          />
-        )}
-        {screen === 'profile' && (
-          <ProfileScreen
-            key={profileKey}
-            onBack={() => setScreen('recipes')}
-            onLogout={handleLogout}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={screen}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
+            {screen === 'recipes' && (
+              <RecipeList
+                onEditRecipe={(recipe) => {
+                  setEditingRecipe(recipe);
+                  setScreen('edit');
+                }}
+                onAddRecipe={() => setScreen('add')}
+              />
+            )}
+            {screen === 'add' && <AddRecipe onDone={() => setScreen('recipes')} />}
+            {screen === 'edit' && editingRecipe && (
+              <AddRecipe
+                onDone={() => {
+                  setEditingRecipe(null);
+                  setScreen('recipes');
+                }}
+                editRecipe={editingRecipe}
+              />
+            )}
+            {screen === 'send' && <SendRequest onDone={() => setScreen('recipes')} />}
+            {screen === 'swipe' && activeRequestId && (
+              <SwipeSelector
+                requestId={activeRequestId}
+                onDone={() => {
+                  setScreen('notifications');
+                  setActiveRequestId(null);
+                }}
+              />
+            )}
+            {screen === 'notifications' && (
+              <Notifications
+                onOpenSwipe={handleOpenSwipe}
+                onViewResults={handleViewResults}
+                onViewDetails={handleViewDetails}
+                onUnreadCountChange={setUnreadCount}
+              />
+            )}
+            {screen === 'results' && activeRequestId && (
+              <SelectedResults
+                requestId={activeRequestId}
+                onBack={() => setScreen('notifications')}
+              />
+            )}
+            {screen === 'details' && activeRequestId && (
+              <SwipeRequestDetails
+                requestId={activeRequestId}
+                onBack={() => setScreen('notifications')}
+              />
+            )}
+            {screen === 'profile' && (
+              <ProfileScreen
+                key={profileKey}
+                onBack={() => setScreen('recipes')}
+                onLogout={handleLogout}
+              />
+            )}
+            {screen === 'family' && (
+              <FamilyScreen
+                onBack={() => setScreen('recipes')}
+              />
+            )}
+            {screen === 'ui-demo' && (
+              <UIDemo />
+            )}
+            {screen === 'all-components' && (
+              <AllComponentsDemo />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}
@@ -325,18 +435,19 @@ function App() {
             color="green"
           />
           <NavButton
-            active={screen === 'notifications'}
-            onClick={() => setScreen('notifications')}
-            icon={<Bell className="w-5 h-5" />}
-            label="Запросы"
-            badge={unreadCount}
+            active={screen === 'family'}
+            onClick={() => setScreen('family')}
+            icon={<Users className="w-5 h-5" />}
+            label="Семья"
+            badge={pendingRequestsCount}
             color="purple"
+            key={`nav-family-${pendingRequestsCount}`}
           />
           <NavButton
             active={screen === 'profile'}
             onClick={() => setScreen('profile')}
             icon={<User className="w-5 h-5" />}
-            label="Профиль"
+            label="Я"
             color="pink"
           />
         </div>
@@ -412,9 +523,16 @@ function NavButton({
         {label}
       </span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
+        <motion.span
+          key={badge}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-lg"
+        >
           {badge}
-        </span>
+        </motion.span>
       )}
     </button>
   );

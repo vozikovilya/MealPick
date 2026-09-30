@@ -51,12 +51,14 @@ export function JoinRequestModal({
             </div>
 
             {/* Информация о пользователе */}
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 mb-4">
+            <div className="bg-gray-50 rounded-2xl p-4 mb-4 border border-gray-100">
               <div className="flex items-center gap-3">
-                <span className="text-4xl">{userAvatar}</span>
-                <div>
-                  <p className="font-semibold text-gray-800">{userName}</p>
-                  <p className="text-sm text-gray-600">{userEmail}</p>
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-4xl shadow-sm border border-gray-100">
+                  {userAvatar}
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-gray-800 text-lg">{userName}</p>
+                  <p className="text-sm text-gray-500">{userEmail}</p>
                 </div>
               </div>
             </div>

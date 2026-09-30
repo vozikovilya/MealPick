@@ -3,6 +3,7 @@ import * as api from '../services/api';
 import { Clock, Trash2, ChevronDown, ChevronUp, List, Grid3X3, Image, Eye, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Recipe } from '../services/api';
+import { MEAL_TYPES } from '../constants';
 
 type ViewMode = 'list' | 'grid';
 
@@ -10,17 +11,6 @@ interface Props {
   onEditRecipe?: (recipe: Recipe) => void;
   onAddRecipe?: () => void;
 }
-
-// Стандартные категории блюд
-const mealTypes = [
-  { id: 'breakfast', name: 'Завтрак', emoji: '🌅' },
-  { id: 'lunch', name: 'Обед', emoji: '☀️' },
-  { id: 'dinner', name: 'Ужин', emoji: '🌙' },
-  { id: 'sides', name: 'Гарниры', emoji: '🥔' },
-  { id: 'desserts', name: 'Десерты', emoji: '🍰' },
-  { id: 'drinks', name: 'Напитки', emoji: '🥤' },
-  { id: 'sauces', name: 'Соусы', emoji: '🥫' },
-];
 
 export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -34,6 +24,13 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
   useEffect(() => {
     loadRecipes();
     loadUserData();
+    
+    // Polling для обновления данных семьи (проверка смены ролей)
+    const familyPollInterval = setInterval(() => {
+      loadUserData();
+    }, 10000); // Каждые 10 секунд
+    
+    return () => clearInterval(familyPollInterval);
   }, []);
 
   const loadUserData = async () => {
@@ -52,19 +49,14 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
 
   // Проверка прав на удаление блюда
   const canDeleteRecipe = (recipe: Recipe): boolean => {
-    if (!currentUser) return false;
-    
-    // Владелец блюда всегда может удалить
-    if (recipe.user_id === currentUser.id) return true;
+    if (!currentUser || !userFamily) return false;
     
     // Глава семьи может удалить любое блюдо
-    if (userFamily && userFamily.owner_id === currentUser.id) return true;
+    if (userFamily.owner_id === currentUser.id) return true;
     
     // Поварушка может удалить любое блюдо
-    if (userFamily) {
-      const member = userFamily.members?.find((m: any) => m.id === currentUser.id);
-      if (member && member.role === 'chef') return true;
-    }
+    const member = userFamily.members?.find((m: any) => m.id === currentUser.id);
+    if (member && member.role === 'chef') return true;
     
     return false;
   };
@@ -105,9 +97,20 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
 
   if (recipes.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="text-6xl mb-4">🍽️</div>
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">Пока нет блюд</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="text-center py-16"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+          className="w-24 h-24 bg-gradient-to-br from-orange-100 to-amber-100 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <span className="text-5xl">🍽️</span>
+        </motion.div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Пока нет блюд</h2>
         <p className="text-gray-500 mb-6">Добавьте свои любимые блюда, чтобы потом спросить партнёра!</p>
         <button
           onClick={onAddRecipe}
@@ -116,14 +119,14 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
           <Plus className="w-5 h-5" />
           Создать новое блюдо
         </button>
-      </div>
+      </motion.div>
     );
   }
 
   // Группируем все категории в единый список
   const allCategories: Record<string, Recipe[]> = {};
   
-  mealTypes.forEach((mt) => {
+  MEAL_TYPES.forEach((mt) => {
     const categoryRecipes = recipes.filter((r) => r.meal_type === mt.id);
     if (categoryRecipes.length > 0) {
       allCategories[mt.id] = categoryRecipes;
@@ -194,7 +197,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
         <div className="space-y-4 py-2 px-1">
           {/* Все категории */}
           {Object.entries(allCategories).map(([type, categoryRecipes]) => {
-            const mealType = mealTypes.find((m) => m.id === type);
+            const mealType = MEAL_TYPES.find((m) => m.id === type);
             return (
               <div key={type}>
                 {/* Collapsible Header */}
@@ -224,7 +227,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="space-y-3 py-1"
+                      className="space-y-3 py-2"
                     >
                       {categoryRecipes.map((recipe, index) => (
                         <RecipeCard
@@ -247,7 +250,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
         <div className="space-y-4 px-1">
           {/* Все категории */}
           {Object.entries(allCategories).map(([type, categoryRecipes]) => {
-            const mealType = mealTypes.find((m) => m.id === type);
+            const mealType = MEAL_TYPES.find((m) => m.id === type);
             return (
               <div key={type}>
                 <button
@@ -274,7 +277,7 @@ export function RecipeList({ onEditRecipe, onAddRecipe }: Props) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="grid grid-cols-2 gap-3 py-1"
+                      className="grid grid-cols-2 gap-3 py-2"
                     >
                       {categoryRecipes.map((recipe, index) => (
                         <RecipeGridCard
@@ -404,7 +407,7 @@ function RecipeGridCard({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const mealType = mealTypes.find((m) => m.id === recipe.meal_type);
+  const mealType = MEAL_TYPES.find((m) => m.id === recipe.meal_type);
 
   const minSwipeDistance = 50;
 
